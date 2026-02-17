@@ -255,6 +255,26 @@
     body.moving * {
       cursor: grabbing !important;
     }
+
+    .block-ghost {
+      position: absolute;
+      left: 4px;
+      right: 4px;
+      border-radius: 6px;
+      pointer-events: none;
+      z-index: 15;
+      background: transparent;
+      border: 2px dashed #4ade80;
+      transition: border-color 0.15s ease;
+    }
+
+    .block-ghost.invalid {
+      border-color: #f87171;
+    }
+
+    .block.being-moved {
+      opacity: 0.3;
+    }
   </style>
 </head>
 <body>
@@ -287,6 +307,7 @@
       blocks: [],
       focusedBlockId: null,
       drag: null,
+      moveGhost: null,
       history: {
         past: [],   // array of blocks snapshots
         future: []  // array of blocks snapshots for redo
@@ -615,6 +636,78 @@
       return prev.endTime;
     }
 
+    function simulatePushRight(blocks, blockIndex) {
+      const block = blocks[blockIndex];
+      const nextIndex = blockIndex + 1;
+      if (nextIndex >= blocks.length) return;
+      const next = blocks[nextIndex];
+      if (block.endTime <= next.startTime) return; // No collision
+
+      next.startTime = block.endTime;
+      if (next.endTime - next.startTime >= MIN_DURATION) return; // Absorbed
+
+      next.endTime = next.startTime + MIN_DURATION;
+      simulatePushRight(blocks, nextIndex);
+
+      // Wall bounce correction
+      if (next.endTime > DAY_END) {
+        next.endTime = DAY_END;
+        if (next.endTime - next.startTime < MIN_DURATION) {
+          next.startTime = next.endTime - MIN_DURATION;
+        }
+      }
+    }
+
+    function simulatePushLeft(blocks, blockIndex) {
+      const block = blocks[blockIndex];
+      const prevIndex = blockIndex - 1;
+      if (prevIndex < 0) return;
+      const prev = blocks[prevIndex];
+      if (block.startTime >= prev.endTime) return; // No collision
+
+      prev.endTime = block.startTime;
+      if (prev.endTime - prev.startTime >= MIN_DURATION) return; // Absorbed
+
+      prev.startTime = prev.endTime - MIN_DURATION;
+      simulatePushLeft(blocks, prevIndex);
+
+      // Wall bounce correction
+      if (prev.startTime < DAY_START) {
+        prev.startTime = DAY_START;
+        if (prev.endTime - prev.startTime < MIN_DURATION) {
+          prev.endTime = prev.startTime + MIN_DURATION;
+        }
+      }
+    }
+
+    function checkMoveViability(movingBlockId, dropStart, dropEnd) {
+      // Clone blocks array (deep copy), excluding the moving block
+      const tempBlocks = JSON.parse(JSON.stringify(
+        state.blocks.filter(b => b.id !== movingBlockId)
+      ));
+
+      // Create the moved block entry
+      const movedBlock = { id: movingBlockId, startTime: dropStart, endTime: dropEnd };
+
+      // Find insertion index
+      let insertIdx = tempBlocks.findIndex(b => b.startTime >= dropStart);
+      if (insertIdx === -1) insertIdx = tempBlocks.length;
+      tempBlocks.splice(insertIdx, 0, movedBlock);
+
+      // Simulate push right from the moved block
+      simulatePushRight(tempBlocks, insertIdx);
+      // Simulate push left from the moved block
+      simulatePushLeft(tempBlocks, insertIdx);
+
+      // Check all blocks have at least MIN_DURATION and are within day bounds
+      for (const block of tempBlocks) {
+        if (block.endTime - block.startTime < MIN_DURATION) return { viable: false };
+        if (block.startTime < DAY_START || block.endTime > DAY_END) return { viable: false };
+      }
+
+      return { viable: true, resultBlocks: tempBlocks };
+    }
+
     function applyResize(blockId, edge, targetTime) {
       const idx = state.blocks.findIndex(b => b.id === blockId);
       if (idx === -1) return;
@@ -689,6 +782,111 @@
         cancelAnimationFrame(autoScrollAnimationId);
         autoScrollAnimationId = null;
       }
+    }
+
+    // Block movement functions
+    function startBlockMove(blockId, mouseY) {
+      const block = state.blocks.find(b => b.id === blockId);
+      if (!block) return;
+
+      const duration = block.endTime - block.startTime;
+      const timeline = document.getElementById('timeline');
+      const rect = timeline.getBoundingClientRect();
+      // Calculate the offset from the top of the block to where the user grabbed
+      const blockTopY = timeToY(block.startTime);
+      const grabOffsetY = (mouseY - rect.top) - blockTopY;
+
+      // Save history before move
+      saveHistory();
+
+      // Create ghost element
+      const ghost = document.createElement('div');
+      ghost.className = 'block-ghost';
+      ghost.style.height = `${timeToY(duration)}px`;
+      ghost.style.top = `${timeToY(block.startTime)}px`;
+      document.getElementById('blocks-layer').appendChild(ghost);
+
+      // Dim original block
+      const blockEl = document.querySelector(`[data-block-id="${blockId}"]`);
+      if (blockEl) blockEl.classList.add('being-moved');
+
+      state.moveGhost = {
+        blockId,
+        duration,
+        grabOffsetY,
+        ghostElement: ghost,
+        lastDropStart: block.startTime,
+        originalStart: block.startTime,
+        originalEnd: block.endTime,
+        viable: true
+      };
+
+      document.body.classList.add('moving');
+    }
+
+    function updateGhostPosition(e) {
+      if (!state.moveGhost) return;
+
+      const timeline = document.getElementById('timeline');
+      const rect = timeline.getBoundingClientRect();
+      const rawY = (e.clientY - rect.top) - state.moveGhost.grabOffsetY;
+      const dropStart = yToTime(rawY);
+
+      // Clamp to day bounds
+      const clampedStart = Math.max(DAY_START, Math.min(DAY_END - state.moveGhost.duration, dropStart));
+      const dropEnd = clampedStart + state.moveGhost.duration;
+
+      // Update ghost position
+      state.moveGhost.ghostElement.style.top = `${timeToY(clampedStart)}px`;
+      state.moveGhost.lastDropStart = clampedStart;
+
+      // Viability check
+      const result = checkMoveViability(state.moveGhost.blockId, clampedStart, dropEnd);
+      state.moveGhost.viable = result.viable;
+      state.moveGhost.resultBlocks = result.viable ? result.resultBlocks : null;
+
+      if (result.viable) {
+        state.moveGhost.ghostElement.classList.remove('invalid');
+      } else {
+        state.moveGhost.ghostElement.classList.add('invalid');
+      }
+    }
+
+    function dropBlock() {
+      if (!state.moveGhost) return;
+
+      const { blockId, viable, resultBlocks, ghostElement, lastDropStart, originalStart } = state.moveGhost;
+
+      // Remove ghost
+      ghostElement.remove();
+
+      // Check if dropped at original position (no-op)
+      if (viable && lastDropStart === originalStart) {
+        // Dropped at original position — no-op, pop the history entry
+        state.history.past.pop();
+        updateUndoRedoButtons();
+      } else if (viable && resultBlocks) {
+        // Apply the simulated result: update state.blocks with the result
+        // Map IDs to new positions
+        for (const resultBlock of resultBlocks) {
+          const stateBlock = state.blocks.find(b => b.id === resultBlock.id);
+          if (stateBlock) {
+            stateBlock.startTime = resultBlock.startTime;
+            stateBlock.endTime = resultBlock.endTime;
+          }
+        }
+        // Re-sort blocks by startTime
+        state.blocks.sort((a, b) => a.startTime - b.startTime);
+      } else {
+        // Move rejected — revert by popping the history snapshot we saved at startBlockMove
+        state.history.past.pop();
+        updateUndoRedoButtons();
+      }
+
+      state.moveGhost = null;
+      document.body.classList.remove('moving');
+      stopAutoScroll();
+      renderBlocks();
     }
 
     // Render blocks
@@ -772,20 +970,32 @@
       // Event listeners
       timeline.addEventListener('mousedown', (e) => {
         const handle = e.target.closest('.resize-handle');
-        if (!handle) return;
+        if (handle) {
+          const blockEl = handle.closest('.block');
+          if (!blockEl || !blockEl.classList.contains('focused')) return;
 
-        const blockEl = handle.closest('.block');
-        if (!blockEl || !blockEl.classList.contains('focused')) return;
+          // Save history before resize starts
+          saveHistory();
 
-        // Save history before resize starts
-        saveHistory();
+          const edge = handle.classList.contains('resize-handle-top') ? 'top' : 'bottom';
+          state.drag = { blockId: blockEl.dataset.blockId, edge };
 
-        const edge = handle.classList.contains('resize-handle-top') ? 'top' : 'bottom';
-        state.drag = { blockId: blockEl.dataset.blockId, edge };
+          document.body.classList.add('dragging');
+          e.preventDefault(); // Prevent text selection
+          e.stopPropagation(); // Prevent click handler from firing
+          return;
+        }
 
-        document.body.classList.add('dragging');
-        e.preventDefault(); // Prevent text selection
-        e.stopPropagation(); // Prevent click handler from firing
+        // Check for move drag on focused block body
+        const blockEl = e.target.closest('.block');
+        if (blockEl && blockEl.classList.contains('focused') && !e.target.closest('.resize-handle') && !e.target.closest('.block-delete')) {
+          // Don't start move if clicking on an input (inline edit mode)
+          if (e.target.tagName === 'INPUT') return;
+
+          startBlockMove(blockEl.dataset.blockId, e.clientY);
+          e.preventDefault();
+          return;
+        }
       });
 
       timeline.addEventListener('click', (e) => {
@@ -845,8 +1055,14 @@
         }
       });
 
-      // Document-level resize drag handlers
+      // Document-level drag handlers (both resize and move)
       document.addEventListener('mousemove', (e) => {
+        if (state.moveGhost) {
+          updateGhostPosition(e);
+          checkAutoScroll(e);
+          return; // Don't process resize while moving
+        }
+
         if (!state.drag) return;
 
         const targetTime = getTimeFromMouseEvent(e);
@@ -866,6 +1082,13 @@
       });
 
       document.addEventListener('mouseup', (e) => {
+        if (state.moveGhost) {
+          dropBlock();
+          justFinishedDrag = true;
+          setTimeout(() => justFinishedDrag = false, 0);
+          return;
+        }
+
         if (!state.drag) return;
 
         justFinishedDrag = true;
