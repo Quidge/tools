@@ -133,6 +133,7 @@
       background: #1a73e8;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
       z-index: 10;
+      cursor: grab;
     }
 
     .block-content {
@@ -234,13 +235,25 @@
       white-space: nowrap;
     }
 
-    body.dragging {
+    body.dragging, body.moving {
       user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body.dragging {
       cursor: ns-resize !important;
     }
 
     body.dragging * {
       cursor: ns-resize !important;
+    }
+
+    body.moving {
+      cursor: grabbing !important;
+    }
+
+    body.moving * {
+      cursor: grabbing !important;
     }
   </style>
 </head>
@@ -635,6 +648,49 @@
       tooltip.style.display = 'none';
     }
 
+    // Auto-scroll during drag
+    let autoScrollAnimationId = null;
+    const AUTO_SCROLL_EDGE = 40; // pixels from container edge
+    const AUTO_SCROLL_SPEED = 5; // pixels per frame
+
+    function checkAutoScroll(e) {
+      const container = document.getElementById('timeline-container');
+      const rect = container.getBoundingClientRect();
+      const relativeY = e.clientY - rect.top;
+
+      if (relativeY < AUTO_SCROLL_EDGE) {
+        startAutoScroll('up');
+      } else if (relativeY > rect.height - AUTO_SCROLL_EDGE) {
+        startAutoScroll('down');
+      } else {
+        stopAutoScroll();
+      }
+    }
+
+    function startAutoScroll(direction) {
+      if (autoScrollAnimationId) return; // Already scrolling
+
+      const container = document.getElementById('timeline-container');
+
+      function scroll() {
+        if (direction === 'up') {
+          container.scrollTop -= AUTO_SCROLL_SPEED;
+        } else {
+          container.scrollTop += AUTO_SCROLL_SPEED;
+        }
+        autoScrollAnimationId = requestAnimationFrame(scroll);
+      }
+
+      autoScrollAnimationId = requestAnimationFrame(scroll);
+    }
+
+    function stopAutoScroll() {
+      if (autoScrollAnimationId) {
+        cancelAnimationFrame(autoScrollAnimationId);
+        autoScrollAnimationId = null;
+      }
+    }
+
     // Render blocks
     function renderBlocks() {
       const blocksLayer = document.getElementById('blocks-layer');
@@ -803,6 +859,9 @@
           showTimeTooltip(displayTime, e);
         }
 
+        // Auto-scroll during resize drag
+        checkAutoScroll(e);
+
         renderBlocks();
       });
 
@@ -814,6 +873,7 @@
         state.drag = null;
         document.body.classList.remove('dragging');
         hideTimeTooltip();
+        stopAutoScroll();
       });
     }
 
