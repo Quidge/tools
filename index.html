@@ -83,7 +83,7 @@
       padding: 6px 10px;
       cursor: pointer;
       user-select: none;
-      overflow: hidden;
+      overflow: visible;
       transition: box-shadow 0.15s ease;
       background: #4285F4;
       border-left: 4px solid #1a73e8;
@@ -142,6 +142,68 @@
     .block-delete:hover {
       opacity: 1;
       background: rgba(255, 255, 255, 0.2);
+    }
+
+    .resize-handle {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 8px;
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .resize-handle-top {
+      top: -4px;
+    }
+
+    .resize-handle-bottom {
+      bottom: -4px;
+    }
+
+    .block.focused .resize-handle {
+      pointer-events: auto;
+      cursor: ns-resize;
+    }
+
+    .block.focused .resize-handle::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 24px;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.5);
+      box-shadow: 0 -3px 0 rgba(255, 255, 255, 0.5), 0 3px 0 rgba(255, 255, 255, 0.5);
+    }
+
+    .block.focused .resize-handle:hover::before {
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 -3px 0 rgba(255, 255, 255, 0.9), 0 3px 0 rgba(255, 255, 255, 0.9);
+    }
+
+    .time-tooltip {
+      position: fixed;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: inherit;
+      pointer-events: none;
+      z-index: 1000;
+      display: none;
+      white-space: nowrap;
+    }
+
+    body.dragging {
+      user-select: none;
+      cursor: ns-resize !important;
+    }
+
+    body.dragging * {
+      cursor: ns-resize !important;
     }
   </style>
 </head>
@@ -309,11 +371,13 @@
 
         const duration = block.endTime - block.startTime;
         blockEl.innerHTML = `
+          <div class="resize-handle resize-handle-top"></div>
           <div class="block-content">
             <span class="block-name">${block.name}</span>
             <span class="block-duration">${formatDuration(duration)}</span>
           </div>
           <button class="block-delete" title="Delete block">&times;</button>
+          <div class="resize-handle resize-handle-bottom"></div>
         `;
 
         fragment.appendChild(blockEl);
@@ -351,6 +415,12 @@
 
       // Scroll to ~5am area (300 minutes)
       timelineContainer.scrollTop = timeToY(300);
+
+      // Create tooltip element
+      const tooltip = document.createElement('div');
+      tooltip.className = 'time-tooltip';
+      tooltip.id = 'time-tooltip';
+      document.body.appendChild(tooltip);
 
       // Event listeners
       timeline.addEventListener('click', (e) => {
