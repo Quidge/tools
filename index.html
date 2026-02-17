@@ -206,6 +206,89 @@
       return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
     }
 
+    // Interaction helpers
+    function getTimeFromMouseEvent(e) {
+      const timeline = document.getElementById('timeline');
+      const rect = timeline.getBoundingClientRect();
+      const container = document.getElementById('timeline-container');
+      const scrollTop = container.scrollTop;
+      const relativeY = e.clientY - rect.top + scrollTop;
+      return yToTime(relativeY);
+    }
+
+    function findGapAt(time) {
+      // Check if time is inside an existing block
+      for (const block of state.blocks) {
+        if (time >= block.startTime && time < block.endTime) {
+          return null;
+        }
+      }
+
+      // Find the gap containing this time
+      let gapStart = DAY_START;
+      let gapEnd = DAY_END;
+
+      for (const block of state.blocks) {
+        if (block.endTime <= time) {
+          gapStart = Math.max(gapStart, block.endTime);
+        }
+        if (block.startTime > time) {
+          gapEnd = Math.min(gapEnd, block.startTime);
+          break;
+        }
+      }
+
+      return { start: gapStart, end: gapEnd, size: gapEnd - gapStart };
+    }
+
+    function createBlockAt(time) {
+      const gap = findGapAt(time);
+
+      // Don't create if inside a block or gap too small
+      if (!gap || gap.size < MIN_DURATION) {
+        return;
+      }
+
+      // Calculate endTime, capped to available gap
+      let endTime = Math.min(time + DEFAULT_DURATION, gap.end);
+
+      // Safety check (should always be true)
+      if (endTime - time < MIN_DURATION) {
+        return;
+      }
+
+      // Create new block
+      const newBlock = {
+        id: generateId(),
+        name: 'New Block',
+        startTime: time,
+        endTime: endTime
+      };
+
+      state.blocks.push(newBlock);
+      state.blocks.sort((a, b) => a.startTime - b.startTime);
+      state.focusedBlockId = newBlock.id; // Auto-focus
+      renderBlocks();
+    }
+
+    function focusBlock(blockId) {
+      state.focusedBlockId = blockId;
+      renderBlocks();
+    }
+
+    function unfocusBlock() {
+      state.focusedBlockId = null;
+      renderBlocks();
+    }
+
+    function deleteBlock(blockId) {
+      state.blocks = state.blocks.filter(b => b.id !== blockId);
+      if (state.focusedBlockId === blockId) {
+        state.focusedBlockId = null;
+      }
+      renderBlocks();
+    }
+
     // Render blocks
     function renderBlocks() {
       const blocksLayer = document.getElementById('blocks-layer');
@@ -244,6 +327,7 @@
       const hourLabels = document.getElementById('hour-labels');
       const gridLines = document.getElementById('grid-lines');
       const timelineContainer = document.getElementById('timeline-container');
+      const timeline = document.getElementById('timeline');
 
       // Generate hour labels (0-24)
       for (let hour = 0; hour <= 24; hour++) {
@@ -262,19 +346,57 @@
         gridLines.appendChild(line);
       }
 
-      // Add hardcoded test blocks
-      state.blocks = [
-        { id: 'test-1', name: 'Morning Routine', startTime: 360, endTime: 420 },
-        { id: 'test-2', name: 'Deep Work', startTime: 540, endTime: 660 },
-        { id: 'test-3', name: 'Lunch', startTime: 720, endTime: 780 }
-      ];
-      state.focusedBlockId = 'test-2';
-
-      // Render blocks
+      // Timeline starts empty (no hardcoded test blocks)
       renderBlocks();
 
       // Scroll to ~5am area (300 minutes)
       timelineContainer.scrollTop = timeToY(300);
+
+      // Event listeners
+      timeline.addEventListener('click', (e) => {
+        // Check for delete button FIRST
+        const deleteBtn = e.target.closest('.block-delete');
+        if (deleteBtn) {
+          e.stopPropagation();
+          const blockEl = deleteBtn.closest('.block');
+          if (blockEl) {
+            deleteBlock(blockEl.dataset.blockId);
+          }
+          return;
+        }
+
+        // Check for block click
+        const blockEl = e.target.closest('.block');
+        if (blockEl) {
+          focusBlock(blockEl.dataset.blockId);
+          return;
+        }
+
+        // Click on empty space — unfocus
+        unfocusBlock();
+      });
+
+      timeline.addEventListener('dblclick', (e) => {
+        // Ignore double-click on existing blocks
+        if (e.target.closest('.block')) {
+          return;
+        }
+
+        const time = getTimeFromMouseEvent(e);
+        createBlockAt(time);
+      });
+
+      // Keyboard shortcut for delete
+      document.addEventListener('keydown', (e) => {
+        if (state.focusedBlockId && (e.key === 'Delete' || e.key === 'Backspace')) {
+          // Don't trigger if user is in an input field
+          if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            return;
+          }
+          e.preventDefault();
+          deleteBlock(state.focusedBlockId);
+        }
+      });
     }
 
     // Initialize on load
