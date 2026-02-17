@@ -115,6 +115,8 @@
     .block-duration {
       font-size: 11px;
       opacity: 0.85;
+      white-space: nowrap;
+      overflow: hidden;
     }
 
     .block-delete {
@@ -210,9 +212,7 @@
     function getTimeFromMouseEvent(e) {
       const timeline = document.getElementById('timeline');
       const rect = timeline.getBoundingClientRect();
-      const container = document.getElementById('timeline-container');
-      const scrollTop = container.scrollTop;
-      const relativeY = e.clientY - rect.top + scrollTop;
+      const relativeY = e.clientY - rect.top;
       return yToTime(relativeY);
     }
 
