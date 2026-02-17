@@ -231,7 +231,8 @@
     // State
     const state = {
       blocks: [],
-      focusedBlockId: null
+      focusedBlockId: null,
+      drag: null
     };
 
     // Helper functions
@@ -351,6 +352,41 @@
       renderBlocks();
     }
 
+    function applyResize(blockId, edge, targetTime) {
+      const idx = state.blocks.findIndex(b => b.id === blockId);
+      if (idx === -1) return;
+      const block = state.blocks[idx];
+
+      if (edge === 'bottom') {
+        // Clamp: at least MIN_DURATION from start, at most next block's start or DAY_END
+        let maxEnd = DAY_END;
+        if (idx + 1 < state.blocks.length) {
+          maxEnd = state.blocks[idx + 1].startTime;
+        }
+        block.endTime = Math.max(block.startTime + MIN_DURATION, Math.min(targetTime, maxEnd));
+      } else {
+        // top edge
+        let minStart = DAY_START;
+        if (idx - 1 >= 0) {
+          minStart = state.blocks[idx - 1].endTime;
+        }
+        block.startTime = Math.min(block.endTime - MIN_DURATION, Math.max(targetTime, minStart));
+      }
+    }
+
+    function showTimeTooltip(time, e) {
+      const tooltip = document.getElementById('time-tooltip');
+      tooltip.textContent = formatTime(time);
+      tooltip.style.display = 'block';
+      tooltip.style.left = (e.clientX + 15) + 'px';
+      tooltip.style.top = (e.clientY - 10) + 'px';
+    }
+
+    function hideTimeTooltip() {
+      const tooltip = document.getElementById('time-tooltip');
+      tooltip.style.display = 'none';
+    }
+
     // Render blocks
     function renderBlocks() {
       const blocksLayer = document.getElementById('blocks-layer');
@@ -422,8 +458,28 @@
       tooltip.id = 'time-tooltip';
       document.body.appendChild(tooltip);
 
+      // Drag state tracking
+      let justFinishedDrag = false;
+
       // Event listeners
+      timeline.addEventListener('mousedown', (e) => {
+        const handle = e.target.closest('.resize-handle');
+        if (!handle) return;
+
+        const blockEl = handle.closest('.block');
+        if (!blockEl || !blockEl.classList.contains('focused')) return;
+
+        const edge = handle.classList.contains('resize-handle-top') ? 'top' : 'bottom';
+        state.drag = { blockId: blockEl.dataset.blockId, edge };
+
+        document.body.classList.add('dragging');
+        e.preventDefault(); // Prevent text selection
+        e.stopPropagation(); // Prevent click handler from firing
+      });
+
       timeline.addEventListener('click', (e) => {
+        if (justFinishedDrag) { justFinishedDrag = false; return; }
+        if (e.target.closest('.resize-handle')) return;
         // Check for delete button FIRST
         const deleteBtn = e.target.closest('.block-delete');
         if (deleteBtn) {
@@ -466,6 +522,33 @@
           e.preventDefault();
           deleteBlock(state.focusedBlockId);
         }
+      });
+
+      // Document-level resize drag handlers
+      document.addEventListener('mousemove', (e) => {
+        if (!state.drag) return;
+
+        const targetTime = getTimeFromMouseEvent(e);
+        applyResize(state.drag.blockId, state.drag.edge, targetTime);
+
+        // Show tooltip with the edge time
+        const block = state.blocks.find(b => b.id === state.drag.blockId);
+        if (block) {
+          const displayTime = state.drag.edge === 'bottom' ? block.endTime : block.startTime;
+          showTimeTooltip(displayTime, e);
+        }
+
+        renderBlocks();
+      });
+
+      document.addEventListener('mouseup', (e) => {
+        if (!state.drag) return;
+
+        justFinishedDrag = true;
+        setTimeout(() => justFinishedDrag = false, 0);
+        state.drag = null;
+        document.body.classList.remove('dragging');
+        hideTimeTooltip();
       });
     }
 
