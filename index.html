@@ -352,25 +352,103 @@
       renderBlocks();
     }
 
+    function pushBlocksRight(blockIndex, desiredEnd) {
+      // Clamp to day boundary
+      desiredEnd = Math.min(desiredEnd, DAY_END);
+
+      const nextIndex = blockIndex + 1;
+
+      // Base case: no next block, only day boundary limits us
+      if (nextIndex >= state.blocks.length) {
+        return desiredEnd;
+      }
+
+      const next = state.blocks[nextIndex];
+
+      // No collision: free space available
+      if (desiredEnd <= next.startTime) {
+        return desiredEnd;
+      }
+
+      // COLLISION: push next block's start forward
+      next.startTime = desiredEnd;
+
+      // Check if next block can absorb the push by shrinking
+      if (next.endTime - next.startTime >= MIN_DURATION) {
+        return desiredEnd; // Absorbed — next block shrank but is still >= MIN_DURATION
+      }
+
+      // Next block is now too small — push its end forward recursively
+      const nextDesiredEnd = next.startTime + MIN_DURATION;
+      const nextActualEnd = pushBlocksRight(nextIndex, nextDesiredEnd);
+      next.endTime = nextActualEnd;
+
+      // If end couldn't expand fully (wall bounce), pull start back to maintain MIN_DURATION
+      if (next.endTime - next.startTime < MIN_DURATION) {
+        next.startTime = next.endTime - MIN_DURATION;
+      }
+
+      // Return what we can actually achieve: next block's start position
+      return next.startTime;
+    }
+
+    function pushBlocksLeft(blockIndex, desiredStart) {
+      // Clamp to day boundary
+      desiredStart = Math.max(desiredStart, DAY_START);
+
+      const prevIndex = blockIndex - 1;
+
+      // Base case: no previous block, only day boundary limits us
+      if (prevIndex < 0) {
+        return desiredStart;
+      }
+
+      const prev = state.blocks[prevIndex];
+
+      // No collision: free space available
+      if (desiredStart >= prev.endTime) {
+        return desiredStart;
+      }
+
+      // COLLISION: push prev block's end backward
+      prev.endTime = desiredStart;
+
+      // Check if prev block can absorb the push by shrinking
+      if (prev.endTime - prev.startTime >= MIN_DURATION) {
+        return desiredStart; // Absorbed
+      }
+
+      // Prev block is now too small — push its start backward recursively
+      const prevDesiredStart = prev.endTime - MIN_DURATION;
+      const prevActualStart = pushBlocksLeft(prevIndex, prevDesiredStart);
+      prev.startTime = prevActualStart;
+
+      // If start couldn't contract fully (wall bounce), push end forward to maintain MIN_DURATION
+      if (prev.endTime - prev.startTime < MIN_DURATION) {
+        prev.endTime = prev.startTime + MIN_DURATION;
+      }
+
+      // Return what we can actually achieve: prev block's end position
+      return prev.endTime;
+    }
+
     function applyResize(blockId, edge, targetTime) {
       const idx = state.blocks.findIndex(b => b.id === blockId);
       if (idx === -1) return;
       const block = state.blocks[idx];
 
       if (edge === 'bottom') {
-        // Clamp: at least MIN_DURATION from start, at most next block's start or DAY_END
-        let maxEnd = DAY_END;
-        if (idx + 1 < state.blocks.length) {
-          maxEnd = state.blocks[idx + 1].startTime;
-        }
-        block.endTime = Math.max(block.startTime + MIN_DURATION, Math.min(targetTime, maxEnd));
+        // Enforce minimum: target cannot be less than startTime + MIN_DURATION
+        let newEnd = Math.max(targetTime, block.startTime + MIN_DURATION);
+        // Push neighbors right, get achievable end position
+        newEnd = pushBlocksRight(idx, newEnd);
+        block.endTime = Math.max(newEnd, block.startTime + MIN_DURATION);
       } else {
-        // top edge
-        let minStart = DAY_START;
-        if (idx - 1 >= 0) {
-          minStart = state.blocks[idx - 1].endTime;
-        }
-        block.startTime = Math.min(block.endTime - MIN_DURATION, Math.max(targetTime, minStart));
+        // top edge: enforce minimum: target cannot be more than endTime - MIN_DURATION
+        let newStart = Math.min(targetTime, block.endTime - MIN_DURATION);
+        // Push neighbors left, get achievable start position
+        newStart = pushBlocksLeft(idx, newStart);
+        block.startTime = Math.min(newStart, block.endTime - MIN_DURATION);
       }
     }
 
