@@ -20,12 +20,49 @@
       max-width: 800px;
       margin: 0 auto;
       height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: white;
+      border-bottom: 1px solid #dadce0;
+      padding: 8px 16px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .toolbar-btn {
+      padding: 6px 12px;
+      border: 1px solid #dadce0;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: 'Google Sans', Roboto, Arial, sans-serif;
+      color: #202124;
+      transition: background 0.1s;
+    }
+
+    .toolbar-btn:hover:not(:disabled) {
+      background: #f1f3f4;
+    }
+
+    .toolbar-btn:disabled {
+      color: #9aa0a6;
+      cursor: not-allowed;
+      opacity: 0.5;
     }
 
     #timeline-container {
       display: flex;
       overflow-y: auto;
-      height: 100vh;
+      flex: 1;
+      min-height: 0;
       background: white;
       border-left: 1px solid #dadce0;
       border-right: 1px solid #dadce0;
@@ -209,6 +246,10 @@
 </head>
 <body>
   <div id="app">
+    <div id="toolbar">
+      <button id="undo-btn" class="toolbar-btn" disabled title="Undo">&#x21A9; Undo</button>
+      <button id="redo-btn" class="toolbar-btn" disabled title="Redo">Redo &#x21AA;</button>
+    </div>
     <div id="timeline-container">
       <div id="hour-labels"></div>
       <div id="timeline">
@@ -232,7 +273,11 @@
     const state = {
       blocks: [],
       focusedBlockId: null,
-      drag: null
+      drag: null,
+      history: {
+        past: [],   // array of blocks snapshots
+        future: []  // array of blocks snapshots for redo
+      }
     };
 
     // Helper functions
@@ -279,6 +324,48 @@
       return yToTime(relativeY);
     }
 
+    // History functions
+    const HISTORY_LIMIT = 50;
+
+    function saveHistory() {
+      // Push current blocks snapshot to past
+      state.history.past.push(JSON.parse(JSON.stringify(state.blocks)));
+      // Trim to limit
+      if (state.history.past.length > HISTORY_LIMIT) {
+        state.history.past.shift();
+      }
+      // Clear future (new action invalidates redo)
+      state.history.future = [];
+      updateUndoRedoButtons();
+    }
+
+    function undo() {
+      if (state.history.past.length === 0) return;
+      // Save current to future
+      state.history.future.push(JSON.parse(JSON.stringify(state.blocks)));
+      // Restore previous
+      state.blocks = state.history.past.pop();
+      state.focusedBlockId = null; // Clear focus (block may not exist)
+      updateUndoRedoButtons();
+      renderBlocks();
+    }
+
+    function redo() {
+      if (state.history.future.length === 0) return;
+      // Save current to past
+      state.history.past.push(JSON.parse(JSON.stringify(state.blocks)));
+      // Restore future
+      state.blocks = state.history.future.pop();
+      state.focusedBlockId = null;
+      updateUndoRedoButtons();
+      renderBlocks();
+    }
+
+    function updateUndoRedoButtons() {
+      document.getElementById('undo-btn').disabled = state.history.past.length === 0;
+      document.getElementById('redo-btn').disabled = state.history.future.length === 0;
+    }
+
     function findGapAt(time) {
       // Check if time is inside an existing block
       for (const block of state.blocks) {
@@ -320,6 +407,9 @@
         return;
       }
 
+      // Save history before creation
+      saveHistory();
+
       // Create new block
       const newBlock = {
         id: generateId(),
@@ -345,6 +435,9 @@
     }
 
     function deleteBlock(blockId) {
+      // Save history before deletion
+      saveHistory();
+
       state.blocks = state.blocks.filter(b => b.id !== blockId);
       if (state.focusedBlockId === blockId) {
         state.focusedBlockId = null;
@@ -530,6 +623,10 @@
       // Scroll to ~5am area (300 minutes)
       timelineContainer.scrollTop = timeToY(300);
 
+      // Wire toolbar buttons
+      document.getElementById('undo-btn').addEventListener('click', undo);
+      document.getElementById('redo-btn').addEventListener('click', redo);
+
       // Create tooltip element
       const tooltip = document.createElement('div');
       tooltip.className = 'time-tooltip';
@@ -546,6 +643,9 @@
 
         const blockEl = handle.closest('.block');
         if (!blockEl || !blockEl.classList.contains('focused')) return;
+
+        // Save history before resize starts
+        saveHistory();
 
         const edge = handle.classList.contains('resize-handle-top') ? 'top' : 'bottom';
         state.drag = { blockId: blockEl.dataset.blockId, edge };
