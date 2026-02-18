@@ -1036,19 +1036,37 @@
       });
 
       timeline.addEventListener('dblclick', (e) => {
-        // Check for double-click on block name for inline editing
-        const blockNameEl = e.target.closest('.block-name');
-        if (blockNameEl) {
-          const blockEl = blockNameEl.closest('.block');
-          if (blockEl && blockEl.dataset.blockId === state.focusedBlockId) {
+        // Don't activate edit when clicking on resize handles or delete button
+        if (e.target.closest('.resize-handle') || e.target.closest('.block-delete')) return;
+
+        // Check for double-click on a block (any part) for inline editing.
+        // Use e.target.closest('.block') to handle clicks anywhere on the block,
+        // including on detached elements (when renderBlocks() replaced DOM between clicks).
+        const blockEl = e.target.closest('.block');
+        if (blockEl) {
+          const blockId = blockEl.dataset.blockId || state.focusedBlockId;
+          if (blockId && blockId === state.focusedBlockId) {
             activateInlineEdit(state.focusedBlockId);
             return;
           }
+          // Block is not focused — ignore (don't create new block)
+          return;
         }
 
-        // Ignore double-click on existing blocks
-        if (e.target.closest('.block')) {
-          return;
+        // Double-click on empty space — but check if focusedBlockId was just set
+        // by the first click of this double-click (happens when clicking unfocused block
+        // body area not covered by .block element due to DOM replacement)
+        if (state.focusedBlockId) {
+          // Check if pointer position is over the current focused block in the DOM
+          const focusedBlockEl = document.querySelector(`[data-block-id="${state.focusedBlockId}"]`);
+          if (focusedBlockEl) {
+            const rect = focusedBlockEl.getBoundingClientRect();
+            if (e.clientX >= rect.left && e.clientX <= rect.right &&
+                e.clientY >= rect.top && e.clientY <= rect.bottom) {
+              activateInlineEdit(state.focusedBlockId);
+              return;
+            }
+          }
         }
 
         const time = getTimeFromMouseEvent(e);
