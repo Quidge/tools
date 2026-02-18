@@ -686,6 +686,13 @@
         state.blocks.filter(b => b.id !== movingBlockId)
       ));
 
+      // Reject if the dropped block would fully cover any existing block
+      for (const block of tempBlocks) {
+        if (dropStart <= block.startTime && dropEnd >= block.endTime) {
+          return { viable: false };
+        }
+      }
+
       // Create the moved block entry
       const movedBlock = { id: movingBlockId, startTime: dropStart, endTime: dropEnd };
 
@@ -703,6 +710,11 @@
       for (const block of tempBlocks) {
         if (block.endTime - block.startTime < MIN_DURATION) return { viable: false };
         if (block.startTime < DAY_START || block.endTime > DAY_END) return { viable: false };
+      }
+
+      // Check no adjacent blocks overlap after simulation
+      for (let i = 1; i < tempBlocks.length; i++) {
+        if (tempBlocks[i].startTime < tempBlocks[i - 1].endTime) return { viable: false };
       }
 
       return { viable: true, resultBlocks: tempBlocks };
