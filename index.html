@@ -459,6 +459,7 @@
     }
 
     function focusBlock(blockId) {
+      if (state.focusedBlockId === blockId) return; // Already focused, skip re-render
       state.focusedBlockId = blockId;
       renderBlocks();
     }
@@ -979,6 +980,11 @@
       // Drag state tracking
       let justFinishedDrag = false;
 
+      // Pending move state: defer block move until mouse actually moves,
+      // so double-clicks aren't intercepted by the move system.
+      let pendingMove = null;
+      const MOVE_THRESHOLD = 3; // pixels of mouse movement before starting move
+
       // Event listeners
       timeline.addEventListener('mousedown', (e) => {
         const handle = e.target.closest('.resize-handle');
@@ -998,13 +1004,17 @@
           return;
         }
 
-        // Check for move drag on focused block body
+        // Check for move drag on focused block body — defer until mouse moves
         const blockEl = e.target.closest('.block');
         if (blockEl && blockEl.classList.contains('focused') && !e.target.closest('.resize-handle') && !e.target.closest('.block-delete')) {
           // Don't start move if clicking on an input (inline edit mode)
           if (e.target.tagName === 'INPUT') return;
 
-          startBlockMove(blockEl.dataset.blockId, e.clientY);
+          pendingMove = {
+            blockId: blockEl.dataset.blockId,
+            startX: e.clientX,
+            startY: e.clientY
+          };
           e.preventDefault();
           return;
         }
@@ -1087,6 +1097,16 @@
 
       // Document-level drag handlers (both resize and move)
       document.addEventListener('mousemove', (e) => {
+        // Check if pending move should become an actual move
+        if (pendingMove && !state.moveGhost) {
+          const dx = e.clientX - pendingMove.startX;
+          const dy = e.clientY - pendingMove.startY;
+          if (Math.abs(dx) > MOVE_THRESHOLD || Math.abs(dy) > MOVE_THRESHOLD) {
+            startBlockMove(pendingMove.blockId, pendingMove.startY);
+            pendingMove = null;
+          }
+        }
+
         if (state.moveGhost) {
           updateGhostPosition(e);
           checkAutoScroll(e);
@@ -1112,6 +1132,11 @@
       });
 
       document.addEventListener('mouseup', (e) => {
+        // Clear pending move if user released without exceeding threshold
+        if (pendingMove) {
+          pendingMove = null;
+        }
+
         if (state.moveGhost) {
           dropBlock();
           justFinishedDrag = true;
