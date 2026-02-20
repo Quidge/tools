@@ -275,6 +275,27 @@
     .block.being-moved {
       opacity: 0.3;
     }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #323232;
+      color: white;
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: 'Google Sans', Roboto, Arial, sans-serif;
+      z-index: 2000;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      pointer-events: none;
+    }
+
+    .toast.visible {
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
@@ -282,6 +303,9 @@
     <div id="toolbar">
       <button id="undo-btn" class="toolbar-btn" disabled title="Undo">&#x21A9; Undo</button>
       <button id="redo-btn" class="toolbar-btn" disabled title="Redo">Redo &#x21AA;</button>
+      <span style="flex:1"></span>
+      <button id="json-btn" class="toolbar-btn" title="Copy schedule as JSON">{ } JSON</button>
+      <button id="share-btn" class="toolbar-btn" title="Copy shareable link">&#x1F517; Share</button>
     </div>
     <div id="timeline-container">
       <div id="hour-labels"></div>
@@ -313,6 +337,77 @@
         future: []  // array of blocks snapshots for redo
       }
     };
+
+    // --- Serialization & URL state ---
+
+    function blocksToJSON(blocks) {
+      return blocks.map(b => ({ name: b.name, start: b.startTime, end: b.endTime }));
+    }
+
+    function blocksFromJSON(arr) {
+      return arr.map(item => ({
+        id: generateId(),
+        name: item.name || 'New Block',
+        startTime: item.start,
+        endTime: item.end
+      }));
+    }
+
+    function encodeStateToURL() {
+      if (state.blocks.length === 0) {
+        // Remove the query param if no blocks
+        const url = new URL(window.location);
+        url.searchParams.delete('s');
+        window.history.replaceState(null, '', url);
+        return;
+      }
+      const json = JSON.stringify(blocksToJSON(state.blocks));
+      const encoded = btoa(json);
+      const url = new URL(window.location);
+      url.searchParams.set('s', encoded);
+      window.history.replaceState(null, '', url);
+    }
+
+    function decodeStateFromURL() {
+      const params = new URLSearchParams(window.location.search);
+      const encoded = params.get('s');
+      if (!encoded) return null;
+      try {
+        const json = atob(encoded);
+        const arr = JSON.parse(json);
+        if (!Array.isArray(arr)) return null;
+        // Validate each entry
+        for (const item of arr) {
+          if (typeof item.start !== 'number' || typeof item.end !== 'number') return null;
+          if (item.start < DAY_START || item.end > DAY_END || item.end - item.start < MIN_DURATION) return null;
+        }
+        return blocksFromJSON(arr);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function getShareableURL() {
+      const json = JSON.stringify(blocksToJSON(state.blocks));
+      const encoded = btoa(json);
+      const url = new URL(window.location);
+      url.searchParams.set('s', encoded);
+      return url.toString();
+    }
+
+    function showToast(message) {
+      let toast = document.getElementById('toast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        toast.className = 'toast';
+        document.body.appendChild(toast);
+      }
+      toast.textContent = message;
+      toast.classList.add('visible');
+      clearTimeout(toast._timeout);
+      toast._timeout = setTimeout(() => toast.classList.remove('visible'), 2000);
+    }
 
     // Helper functions
     function timeToY(minutes) {
@@ -935,6 +1030,8 @@
       });
 
       blocksLayer.replaceChildren(fragment);
+      // Sync URL with current state (skipping undo/redo history)
+      encodeStateToURL();
     }
 
     // Initialize timeline
@@ -961,15 +1058,51 @@
         gridLines.appendChild(line);
       }
 
-      // Timeline starts empty (no hardcoded test blocks)
+      // Load state from URL if present, otherwise start empty
+      const loadedBlocks = decodeStateFromURL();
+      if (loadedBlocks && loadedBlocks.length > 0) {
+        state.blocks = loadedBlocks;
+        state.blocks.sort((a, b) => a.startTime - b.startTime);
+      }
       renderBlocks();
 
-      // Scroll to ~5am area (300 minutes)
-      timelineContainer.scrollTop = timeToY(300);
+      // Scroll to ~5am area (300 minutes), or to first block if loaded from URL
+      if (state.blocks.length > 0) {
+        const firstBlockStart = state.blocks[0].startTime;
+        // Scroll so the first block is near the top with some padding
+        timelineContainer.scrollTop = Math.max(0, timeToY(firstBlockStart) - 40);
+      } else {
+        timelineContainer.scrollTop = timeToY(300);
+      }
 
       // Wire toolbar buttons
       document.getElementById('undo-btn').addEventListener('click', undo);
       document.getElementById('redo-btn').addEventListener('click', redo);
+
+      // Share button
+      document.getElementById('share-btn').addEventListener('click', () => {
+        if (state.blocks.length === 0) {
+          showToast('Nothing to share — add some blocks first');
+          return;
+        }
+        const url = getShareableURL();
+        navigator.clipboard.writeText(url).then(() => {
+          showToast('Shareable link copied to clipboard');
+        }, () => {
+          // Fallback: select a prompt
+          showToast('Could not copy — check clipboard permissions');
+        });
+      });
+
+      // JSON button
+      document.getElementById('json-btn').addEventListener('click', () => {
+        const json = JSON.stringify(blocksToJSON(state.blocks), null, 2);
+        navigator.clipboard.writeText(json).then(() => {
+          showToast('JSON copied to clipboard');
+        }, () => {
+          showToast('Could not copy — check clipboard permissions');
+        });
+      });
 
       // Create tooltip element
       const tooltip = document.createElement('div');
