@@ -105,6 +105,38 @@
       border-top: 1px solid #e0e0e0;
     }
 
+    .grid-line-half {
+      position: absolute;
+      width: 100%;
+      border-top: 1px dashed #e8e8e8;
+    }
+
+    .grid-line-quarter {
+      position: absolute;
+      width: 100%;
+      border-top: 1px dotted #efefef;
+    }
+
+    .hour-label-half {
+      position: absolute;
+      transform: translateY(-50%);
+      text-align: right;
+      padding-right: 8px;
+      width: 100%;
+      font-size: 10px;
+      color: #9aa0a6;
+    }
+
+    .hour-label-quarter {
+      position: absolute;
+      transform: translateY(-50%);
+      text-align: right;
+      padding-right: 8px;
+      width: 100%;
+      font-size: 9px;
+      color: #bdc1c6;
+    }
+
     #blocks-layer {
       position: absolute;
       inset: 0;
@@ -1059,21 +1091,59 @@
       const timelineContainer = document.getElementById('timeline-container');
       const timeline = document.getElementById('timeline');
 
-      // Generate hour labels (0-24)
+      // Generate hour labels, grid lines, and sub-hour markers (0-24)
       for (let hour = 0; hour <= 24; hour++) {
+        // Hour label
         const label = document.createElement('div');
         label.className = 'hour-label';
         label.style.top = `${hour * HOUR_HEIGHT}px`;
         label.textContent = `${hour}:00`;
         hourLabels.appendChild(label);
-      }
 
-      // Generate grid lines (0-24)
-      for (let hour = 0; hour <= 24; hour++) {
+        // Hour grid line
         const line = document.createElement('div');
         line.className = 'grid-line';
         line.style.top = `${hour * HOUR_HEIGHT}px`;
         gridLines.appendChild(line);
+
+        // Sub-hour markers (skip for the last hour boundary)
+        if (hour < 24) {
+          // :15 marker
+          const q1Label = document.createElement('div');
+          q1Label.className = 'hour-label-quarter';
+          q1Label.style.top = `${hour * HOUR_HEIGHT + HOUR_HEIGHT * 0.25}px`;
+          q1Label.textContent = `:15`;
+          hourLabels.appendChild(q1Label);
+
+          const q1Line = document.createElement('div');
+          q1Line.className = 'grid-line-quarter';
+          q1Line.style.top = `${hour * HOUR_HEIGHT + HOUR_HEIGHT * 0.25}px`;
+          gridLines.appendChild(q1Line);
+
+          // :30 marker
+          const halfLabel = document.createElement('div');
+          halfLabel.className = 'hour-label-half';
+          halfLabel.style.top = `${hour * HOUR_HEIGHT + HOUR_HEIGHT * 0.5}px`;
+          halfLabel.textContent = `:30`;
+          hourLabels.appendChild(halfLabel);
+
+          const halfLine = document.createElement('div');
+          halfLine.className = 'grid-line-half';
+          halfLine.style.top = `${hour * HOUR_HEIGHT + HOUR_HEIGHT * 0.5}px`;
+          gridLines.appendChild(halfLine);
+
+          // :45 marker
+          const q3Label = document.createElement('div');
+          q3Label.className = 'hour-label-quarter';
+          q3Label.style.top = `${hour * HOUR_HEIGHT + HOUR_HEIGHT * 0.75}px`;
+          q3Label.textContent = `:45`;
+          hourLabels.appendChild(q3Label);
+
+          const q3Line = document.createElement('div');
+          q3Line.className = 'grid-line-quarter';
+          q3Line.style.top = `${hour * HOUR_HEIGHT + HOUR_HEIGHT * 0.75}px`;
+          gridLines.appendChild(q3Line);
+        }
       }
 
       // Load state from URL if present, otherwise start empty
