@@ -1016,15 +1016,33 @@
         blockEl.style.height = `${height}px`;
 
         const duration = block.endTime - block.startTime;
-        blockEl.innerHTML = `
-          <div class="resize-handle resize-handle-top"></div>
-          <div class="block-content">
-            <span class="block-name">${block.name}</span>
-            <span class="block-duration">${formatDuration(duration)}</span>
-          </div>
-          <button class="block-delete" title="Delete block">&times;</button>
-          <div class="resize-handle resize-handle-bottom"></div>
-        `;
+
+        const handleTop = document.createElement('div');
+        handleTop.className = 'resize-handle resize-handle-top';
+
+        const content = document.createElement('div');
+        content.className = 'block-content';
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'block-name';
+        nameSpan.textContent = block.name;
+        const durationSpan = document.createElement('span');
+        durationSpan.className = 'block-duration';
+        durationSpan.textContent = formatDuration(duration);
+        content.appendChild(nameSpan);
+        content.appendChild(durationSpan);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'block-delete';
+        deleteBtn.title = 'Delete block';
+        deleteBtn.textContent = '\u00d7';
+
+        const handleBottom = document.createElement('div');
+        handleBottom.className = 'resize-handle resize-handle-bottom';
+
+        blockEl.appendChild(handleTop);
+        blockEl.appendChild(content);
+        blockEl.appendChild(deleteBtn);
+        blockEl.appendChild(handleBottom);
 
         fragment.appendChild(blockEl);
       });
@@ -1096,6 +1114,10 @@
 
       // JSON button
       document.getElementById('json-btn').addEventListener('click', () => {
+        if (state.blocks.length === 0) {
+          showToast('Nothing to export — add some blocks first');
+          return;
+        }
         const json = JSON.stringify(blocksToJSON(state.blocks), null, 2);
         navigator.clipboard.writeText(json).then(() => {
           showToast('JSON copied to clipboard');
