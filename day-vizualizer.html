@@ -123,7 +123,7 @@
       text-align: right;
       padding-right: 8px;
       width: 100%;
-      font-size: 12px;
+      font-size: 10px;
       color: #9aa0a6;
     }
 
@@ -133,7 +133,7 @@
       text-align: right;
       padding-right: 8px;
       width: 100%;
-      font-size: 11px;
+      font-size: 9px;
       color: #bdc1c6;
     }
 
@@ -372,6 +372,21 @@
 
     // --- Serialization & URL state ---
 
+    // Unicode-safe base64 encoding/decoding (btoa/atob only handle Latin1)
+    function toBase64(str) {
+      const bytes = new TextEncoder().encode(str);
+      let binary = '';
+      for (const byte of bytes) binary += String.fromCharCode(byte);
+      return btoa(binary);
+    }
+
+    function fromBase64(b64) {
+      const binary = atob(b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return new TextDecoder().decode(bytes);
+    }
+
     function blocksToJSON(blocks) {
       return blocks.map(b => ({ name: b.name, start: b.startTime, end: b.endTime }));
     }
@@ -394,7 +409,7 @@
         return;
       }
       const json = JSON.stringify(blocksToJSON(state.blocks));
-      const encoded = btoa(json);
+      const encoded = toBase64(json);
       const url = new URL(window.location);
       url.searchParams.set('s', encoded);
       window.history.replaceState(null, '', url);
@@ -405,7 +420,7 @@
       const encoded = params.get('s');
       if (!encoded) return null;
       try {
-        const json = atob(encoded);
+        const json = fromBase64(encoded);
         const arr = JSON.parse(json);
         if (!Array.isArray(arr)) return null;
         // Validate each entry
@@ -421,7 +436,7 @@
 
     function getShareableURL() {
       const json = JSON.stringify(blocksToJSON(state.blocks));
-      const encoded = btoa(json);
+      const encoded = toBase64(json);
       const url = new URL(window.location);
       url.searchParams.set('s', encoded);
       return url.toString();
