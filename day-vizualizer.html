@@ -336,6 +336,7 @@
       <button id="undo-btn" class="toolbar-btn" disabled title="Undo">&#x21A9; Undo</button>
       <button id="redo-btn" class="toolbar-btn" disabled title="Redo">Redo &#x21AA;</button>
       <span style="flex:1"></span>
+      <button id="time-format-btn" class="toolbar-btn" title="Toggle 12/24 hour format">24hr</button>
       <button id="json-btn" class="toolbar-btn" title="Copy schedule as JSON">{ } JSON</button>
       <button id="share-btn" class="toolbar-btn" title="Copy shareable link">&#x1F517; Share</button>
     </div>
@@ -364,6 +365,7 @@
       focusedBlockId: null,
       drag: null,
       moveGhost: null,
+      use12Hour: false,
       history: {
         past: [],   // array of blocks snapshots
         future: []  // array of blocks snapshots for redo
@@ -472,7 +474,13 @@
     function formatTime(minutes) {
       const hours = Math.floor(minutes / 60);
       const mins = minutes % 60;
-      return `${hours}:${mins.toString().padStart(2, '0')}`;
+      if (!state.use12Hour) {
+        return `${hours}:${mins.toString().padStart(2, '0')}`;
+      }
+      const period = hours < 12 || hours === 24 ? 'AM' : 'PM';
+      let h = hours % 12;
+      if (h === 0) h = 12;
+      return `${h}:${mins.toString().padStart(2, '0')} ${period}`;
     }
 
     function formatDuration(minutes) {
@@ -1103,20 +1111,28 @@
       blocksLayer.replaceChildren(fragment);
     }
 
-    // Initialize timeline
-    function initTimeline() {
+    function formatHourLabel(hour) {
+      if (!state.use12Hour) {
+        return `${hour}:00`;
+      }
+      const period = hour < 12 || hour === 24 ? 'AM' : 'PM';
+      let h = hour % 12;
+      if (h === 0) h = 12;
+      return `${h} ${period}`;
+    }
+
+    function renderHourLabels() {
       const hourLabels = document.getElementById('hour-labels');
       const gridLines = document.getElementById('grid-lines');
-      const timelineContainer = document.getElementById('timeline-container');
-      const timeline = document.getElementById('timeline');
+      hourLabels.innerHTML = '';
+      gridLines.innerHTML = '';
 
-      // Generate hour labels, grid lines, and sub-hour markers (0-24)
       for (let hour = 0; hour <= 24; hour++) {
         // Hour label
         const label = document.createElement('div');
         label.className = 'hour-label';
         label.style.top = `${hour * HOUR_HEIGHT}px`;
-        label.textContent = `${hour}:00`;
+        label.textContent = formatHourLabel(hour);
         hourLabels.appendChild(label);
 
         // Hour grid line
@@ -1164,6 +1180,21 @@
           gridLines.appendChild(q3Line);
         }
       }
+    }
+
+    function toggleTimeFormat() {
+      state.use12Hour = !state.use12Hour;
+      document.getElementById('time-format-btn').textContent = state.use12Hour ? '12hr' : '24hr';
+      renderHourLabels();
+    }
+
+    // Initialize timeline
+    function initTimeline() {
+      const timelineContainer = document.getElementById('timeline-container');
+      const timeline = document.getElementById('timeline');
+
+      // Generate hour labels, grid lines, and sub-hour markers
+      renderHourLabels();
 
       // Load state from URL if present, otherwise start empty
       const loadedBlocks = decodeStateFromURL();
@@ -1185,6 +1216,7 @@
       // Wire toolbar buttons
       document.getElementById('undo-btn').addEventListener('click', undo);
       document.getElementById('redo-btn').addEventListener('click', redo);
+      document.getElementById('time-format-btn').addEventListener('click', toggleTimeFormat);
 
       // Share button
       document.getElementById('share-btn').addEventListener('click', () => {
