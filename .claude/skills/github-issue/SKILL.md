@@ -17,6 +17,8 @@ If the issue is about a specific tool, it should have a label designating which 
 
 Where `<tool-type>` may be ONE of: `bash`, `python`, or `html`. `<tool-name>` is the kebab case form of the name.
 
+If this is the first time a label has been used for a specific tool name, it is likely that `<tool-type>:<that tool name>` will not exist as a label and you will have to create the label before it can be used.
+
 Example:
 - `html:day-visualizer`
 
