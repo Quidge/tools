@@ -15,7 +15,7 @@ Every tool is a **single, self-contained HTML file** in the repo root. Zero exte
 4. Test locally: `uv run python -m http.server 8000`
 
 ### File Naming
-- Lowercase, hyphen-separated: `day-vizualizer.html`, `color-picker.html`
+- Lowercase, hyphen-separated: `day-visualizer.html`, `color-picker.html`
 - Name describes the tool's purpose
 
 ## Core Rules
