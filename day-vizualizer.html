@@ -379,20 +379,20 @@
         {
           id: generateId(),
           name: 'Double-click empty space to create a block',
-          startTime: 105,
-          endTime: 175
+          startTime: 540,
+          endTime: 610
         },
         {
           id: generateId(),
           name: 'Click a block to focus it, then double-click to edit its name',
-          startTime: 260,
-          endTime: 340
+          startTime: 720,
+          endTime: 800
         },
         {
           id: generateId(),
           name: 'Drag the handles of a focused block to resize it',
-          startTime: 370,
-          endTime: 405
+          startTime: 840,
+          endTime: 900
         }
       ];
     }
@@ -429,9 +429,9 @@
 
     function encodeStateToURL() {
       if (state.blocks.length === 0) {
-        // Remove the query param if no blocks
+        // Keep empty 's' param so reloading stays empty (not demo blocks)
         const url = new URL(window.location);
-        url.searchParams.delete('s');
+        url.searchParams.set('s', '');
         window.history.replaceState(null, '', url);
         return;
       }
