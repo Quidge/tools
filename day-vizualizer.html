@@ -12,7 +12,7 @@
     }
 
     body {
-      font-family: 'Google Sans', Roboto, Arial, sans-serif;
+      font-family: system-ui, sans-serif;
       background: #f8f9fa;
     }
 
@@ -43,7 +43,7 @@
       border-radius: 4px;
       cursor: pointer;
       font-size: 13px;
-      font-family: 'Google Sans', Roboto, Arial, sans-serif;
+      font-family: system-ui, sans-serif;
       color: #202124;
       transition: background 0.1s;
     }
@@ -318,7 +318,7 @@
       padding: 10px 24px;
       border-radius: 8px;
       font-size: 14px;
-      font-family: 'Google Sans', Roboto, Arial, sans-serif;
+      font-family: system-ui, sans-serif;
       z-index: 2000;
       opacity: 0;
       transition: opacity 0.2s ease;
@@ -538,7 +538,7 @@
 
     function saveHistory() {
       // Push current blocks snapshot to past
-      state.history.past.push(JSON.parse(JSON.stringify(state.blocks)));
+      state.history.past.push(structuredClone(state.blocks));
       // Trim to limit
       if (state.history.past.length > HISTORY_LIMIT) {
         state.history.past.shift();
@@ -551,7 +551,7 @@
     function undo() {
       if (state.history.past.length === 0) return;
       // Save current to future
-      state.history.future.push(JSON.parse(JSON.stringify(state.blocks)));
+      state.history.future.push(structuredClone(state.blocks));
       // Restore previous
       state.blocks = state.history.past.pop();
       state.focusedBlockId = null; // Clear focus (block may not exist)
@@ -563,7 +563,7 @@
     function redo() {
       if (state.history.future.length === 0) return;
       // Save current to past
-      state.history.past.push(JSON.parse(JSON.stringify(state.blocks)));
+      state.history.past.push(structuredClone(state.blocks));
       // Restore future
       state.blocks = state.history.future.pop();
       state.focusedBlockId = null;
@@ -674,7 +674,7 @@
         width: 100%;
         font-size: 13px;
         font-weight: 500;
-        font-family: 'Google Sans', Roboto, Arial, sans-serif;
+        font-family: system-ui, sans-serif;
         padding: 0;
         margin: 0;
         line-height: 1.3;
@@ -863,9 +863,9 @@
 
     function checkMoveViability(movingBlockId, dropStart, dropEnd) {
       // Clone blocks array (deep copy), excluding the moving block
-      const tempBlocks = JSON.parse(JSON.stringify(
+      const tempBlocks = structuredClone(
         state.blocks.filter(b => b.id !== movingBlockId)
-      ));
+      );
 
       // Reject if the dropped block would fully cover any existing block
       for (const block of tempBlocks) {
@@ -1459,8 +1459,8 @@
       });
     }
 
-    // Initialize on load
-    document.addEventListener('DOMContentLoaded', initTimeline);
+    // Initialize
+    initTimeline();
   </script>
 </body>
 </html>
