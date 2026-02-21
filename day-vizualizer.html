@@ -372,6 +372,31 @@
       }
     };
 
+    // --- Demo / starter blocks ---
+
+    function getDemoBlocks() {
+      return [
+        {
+          id: generateId(),
+          name: 'Double-click empty space to create a block',
+          startTime: 540,
+          endTime: 610
+        },
+        {
+          id: generateId(),
+          name: 'Click a block to focus it, then double-click to edit its name',
+          startTime: 720,
+          endTime: 800
+        },
+        {
+          id: generateId(),
+          name: 'Drag the handles of a focused block to resize it',
+          startTime: 840,
+          endTime: 900
+        }
+      ];
+    }
+
     // --- Serialization & URL state ---
 
     // Unicode-safe base64 encoding/decoding (btoa/atob only handle Latin1)
@@ -404,9 +429,9 @@
 
     function encodeStateToURL() {
       if (state.blocks.length === 0) {
-        // Remove the query param if no blocks
+        // Keep empty 's' param so reloading stays empty (not demo blocks)
         const url = new URL(window.location);
-        url.searchParams.delete('s');
+        url.searchParams.set('s', '');
         window.history.replaceState(null, '', url);
         return;
       }
@@ -1196,11 +1221,13 @@
       // Generate hour labels, grid lines, and sub-hour markers
       renderHourLabels();
 
-      // Load state from URL if present, otherwise start empty
+      // Load state from URL if present, otherwise show demo blocks
       const loadedBlocks = decodeStateFromURL();
       if (loadedBlocks && loadedBlocks.length > 0) {
         state.blocks = loadedBlocks;
         state.blocks.sort((a, b) => a.startTime - b.startTime);
+      } else if (!new URLSearchParams(window.location.search).has('s')) {
+        state.blocks = getDemoBlocks();
       }
       renderBlocks();
 
