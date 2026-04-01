@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cycle Tracker</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f8f9fa;
+      color: #202124;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      padding-bottom: 2rem;
+    }
+
+    /* HEADER */
+    #app {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .hdr-top {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 0;
+    }
+
+    h1 small {
+      display: block;
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: #5f6368;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 0.2rem;
+    }
+
+    .share-btn {
+      font-size: 13px;
+      font-family: inherit;
+      padding: 8px 16px;
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      background: white;
+      color: #202124;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .share-btn:hover:not(.disabled) {
+      background: #f1f3f4;
+    }
+
+    .share-btn.ok {
+      border-color: #34a853;
+      color: #34a853;
+    }
+
+    .share-btn.disabled {
+      color: #9aa0a6;
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    .inputs {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .inputs label {
+      font-size: 13px;
+      font-weight: 500;
+      color: #5f6368;
+    }
+
+    .inputs input {
+      font-family: inherit;
+      font-size: 16px;
+      padding: 8px 12px;
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      background: white;
+      color: #202124;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .inputs input:focus {
+      outline: 2px solid #1a73e8;
+      outline-offset: -1px;
+      border-color: #1a73e8;
+    }
+
+    .inputs input[type="number"] {
+      width: 4.5rem;
+    }
+
+    /* PHASE COLORS */
+    :root {
+      --c-mens: #d93025;
+      --bg-mens: #fce8e6;
+      --c-foll: #e8710a;
+      --bg-foll: #fef7e0;
+      --c-ovul: #34a853;
+      --bg-ovul: #e6f4ea;
+      --c-lute: #7b61c2;
+      --bg-lute: #ede7f6;
+    }
+
+    /* INFO DROPDOWN */
+    .info-area {
+      margin-top: 16px;
+    }
+
+    .info-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      color: #5f6368;
+      background: none;
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .info-btn:hover {
+      background: #f1f3f4;
+    }
+
+    .info-btn .arr {
+      display: inline-block;
+      font-size: 0.55rem;
+      transition: transform 0.25s ease;
+    }
+
+    .info-btn.open .arr {
+      transform: rotate(180deg);
+    }
+
+    .info-body {
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: max-height 0.35s ease, opacity 0.3s ease, margin-top 0.35s ease;
+      margin-top: 0;
+    }
+
+    .info-body.open {
+      max-height: 500px;
+      opacity: 1;
+      margin-top: 12px;
+    }
+
+    .info-card {
+      background: white;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      padding: 12px 16px;
+    }
+
+    .ph-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      padding: 8px 0;
+      border-bottom: 1px solid #e8eaed;
+    }
+
+    .ph-row:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .ph-row:first-child {
+      padding-top: 0;
+    }
+
+    .ph-dot {
+      flex-shrink: 0;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-top: 0.4rem;
+    }
+
+    .ph-dot-m { background: var(--c-mens); }
+    .ph-dot-f { background: var(--c-foll); }
+    .ph-dot-o { background: var(--c-ovul); }
+    .ph-dot-l { background: var(--c-lute); }
+
+    .ph-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #202124;
+      margin-bottom: 2px;
+    }
+
+    .ph-desc {
+      font-size: 12px;
+      color: #5f6368;
+      line-height: 1.5;
+    }
+
+    /* STATUS */
+    .status-card {
+      margin-top: 16px;
+      background: white;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .st-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .st-lbl {
+      font-size: 11px;
+      font-weight: 600;
+      color: #5f6368;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    .st-val {
+      font-size: 14px;
+    }
+
+    .st-val.c-m { color: var(--c-mens); }
+    .st-val.c-f { color: var(--c-foll); }
+    .st-val.c-o { color: var(--c-ovul); }
+    .st-val.c-l { color: var(--c-lute); }
+
+    /* CALENDAR */
+    .cal-grid {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    @media (max-width: 780px) {
+      .cal-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 520px) {
+      .cal-grid { grid-template-columns: 1fr; }
+    }
+
+    .mo-card {
+      background: white;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      padding: 12px;
+      animation: slideUp 0.3s ease both;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .mo-name {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .mo-name .yr {
+      font-size: 11px;
+      color: #5f6368;
+      font-weight: 400;
+      margin-left: 4px;
+    }
+
+    .wk-row {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      margin-bottom: 2px;
+    }
+
+    .wk-cell {
+      text-align: center;
+      font-size: 10px;
+      font-weight: 600;
+      color: #5f6368;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 2px 0;
+    }
+
+    .dy-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 1px;
+    }
+
+    .dy {
+      position: relative;
+      font-size: 12px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #5f6368;
+      cursor: default;
+      padding-top: 100%;
+      height: 0;
+    }
+
+    .dy > span {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .dy.c-m { background: var(--bg-mens); color: var(--c-mens); font-weight: 600; }
+    .dy.c-f { background: var(--bg-foll); color: var(--c-foll); font-weight: 500; }
+    .dy.c-o { background: var(--bg-ovul); color: var(--c-ovul); font-weight: 600; }
+    .dy.c-l { background: var(--bg-lute); color: var(--c-lute); font-weight: 500; }
+    .dy.today { box-shadow: inset 0 0 0 2px #202124; }
+    .dy.start { box-shadow: inset 0 0 0 2px var(--c-mens), 0 0 0 2px var(--c-mens); }
+
+    /* EMPTY STATE */
+    .empty-state {
+      padding: 3rem 0;
+      text-align: center;
+    }
+
+    .empty-state h2 {
+      font-size: 1.3rem;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
+    .empty-state p {
+      font-size: 14px;
+      color: #5f6368;
+      max-width: 340px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+
+    /* TOAST */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #323232;
+      color: white;
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      z-index: 2000;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      pointer-events: none;
+    }
+
+    .toast.visible {
+      opacity: 1;
+    }
+
+    @media (max-width: 600px) {
+      #app { padding: 12px; }
+      h1 { font-size: 1.25rem; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="hdr-top">
+        <h1><small>Tracker</small>Cycle Calendar</h1>
+        <button class="share-btn disabled" id="share">Share cycle</button>
+      </div>
+      <div class="inputs">
+        <label for="lmp">Last period start</label>
+        <input type="date" id="lmp">
+        <label for="clen">Cycle length</label>
+        <input type="number" id="clen" min="20" max="45" value="28">
+      </div>
+    </header>
+
+    <div class="info-area">
+      <button class="info-btn" id="info-btn">About phases <span class="arr">&#9660;</span></button>
+      <div class="info-body" id="info-body">
+        <div class="info-card">
+          <div class="ph-row">
+            <div class="ph-dot ph-dot-m"></div>
+            <div>
+              <div class="ph-name">Menstruation</div>
+              <div class="ph-desc">The uterine lining sheds, resulting in a period. Typically lasts 3&#8211;7 days. Energy and hormone levels are at their lowest.</div>
+            </div>
+          </div>
+          <div class="ph-row">
+            <div class="ph-dot ph-dot-f"></div>
+            <div>
+              <div class="ph-name">Follicular</div>
+              <div class="ph-desc">Begins after menstruation. FSH stimulates follicle growth in the ovaries. Estrogen rises, energy increases, and the uterine lining rebuilds.</div>
+            </div>
+          </div>
+          <div class="ph-row">
+            <div class="ph-dot ph-dot-o"></div>
+            <div>
+              <div class="ph-name">Ovulation</div>
+              <div class="ph-desc">A surge in LH triggers the release of a mature egg, usually around day 14 in a 28-day cycle. This is the most fertile window, lasting roughly 1&#8211;3 days.</div>
+            </div>
+          </div>
+          <div class="ph-row">
+            <div class="ph-dot ph-dot-l"></div>
+            <div>
+              <div class="ph-name">Luteal</div>
+              <div class="ph-desc">After ovulation, the follicle produces progesterone to maintain the uterine lining. If no implantation occurs, hormones drop and the cycle restarts. PMS symptoms may appear.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="st"></div>
+    <div id="cal"></div>
+  </div>
+
+  <script>
+    const WD = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+    const MN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const PNAME = { m: 'Menstruation', f: 'Follicular', o: 'Ovulation', l: 'Luteal' };
+    const PCLS = { m: 'c-m', f: 'c-f', o: 'c-o', l: 'c-l' };
+
+    const elLmp = document.getElementById('lmp');
+    const elClen = document.getElementById('clen');
+    const elShare = document.getElementById('share');
+    const elInfoBtn = document.getElementById('info-btn');
+    const elInfoBody = document.getElementById('info-body');
+    const elSt = document.getElementById('st');
+    const elCal = document.getElementById('cal');
+
+    // --- Toast ---
+
+    function showToast(message) {
+      let toast = document.getElementById('toast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        toast.className = 'toast';
+        document.body.appendChild(toast);
+      }
+      toast.textContent = message;
+      toast.classList.add('visible');
+      clearTimeout(toast._timeout);
+      toast._timeout = setTimeout(() => toast.classList.remove('visible'), 2000);
+    }
+
+    // --- Query param parsing ---
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('date')) elLmp.value = params.get('date');
+    if (params.has('cycle')) {
+      const cn = parseInt(params.get('cycle'), 10);
+      if (cn >= 20 && cn <= 45) elClen.value = cn;
+    }
+
+    // --- Events ---
+
+    elLmp.addEventListener('change', () => { pushURL(); render(); updateShareState(); });
+    elClen.addEventListener('change', () => { pushURL(); render(); updateShareState(); });
+
+    elInfoBtn.addEventListener('click', () => {
+      elInfoBtn.classList.toggle('open');
+      elInfoBody.classList.toggle('open');
+    });
+
+    elShare.addEventListener('click', () => {
+      if (!canShare()) return;
+      navigator.clipboard.writeText(window.location.href).then(
+        () => showToast('Copied to clipboard'),
+        () => showToast('Could not copy — check clipboard permissions')
+      );
+    });
+
+    function canShare() {
+      const cn = parseInt(elClen.value, 10);
+      return elLmp.value && elLmp.value.length > 0 && cn >= 20 && cn <= 45;
+    }
+
+    function updateShareState() {
+      elShare.classList.toggle('disabled', !canShare());
+    }
+
+    function pushURL() {
+      const url = new URL(window.location);
+      if (elLmp.value) {
+        url.searchParams.set('date', elLmp.value);
+      } else {
+        url.searchParams.delete('date');
+      }
+      url.searchParams.set('cycle', elClen.value);
+      window.history.replaceState(null, '', url);
+    }
+
+    // --- Cycle math ---
+
+    function daysBetween(a, b) {
+      return Math.floor(
+        (Date.UTC(b.getFullYear(), b.getMonth(), b.getDate()) -
+         Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) / 86400000
+      );
+    }
+
+    function posMod(n, m) { return ((n % m) + m) % m; }
+
+    function phaseForDayNum(d) {
+      const len = parseInt(elClen.value, 10) || 28;
+      const ov = len - 14;
+      if (d <= 4) return { p: 'm', label: `Menstruation \u00B7 Day ${d + 1}` };
+      if (d < ov - 1) return { p: 'f', label: `Follicular \u00B7 Day ${d + 1}` };
+      if (d <= ov + 1) return { p: 'o', label: `Ovulation \u00B7 Day ${d + 1}` };
+      return { p: 'l', label: `Luteal \u00B7 Day ${d + 1}` };
+    }
+
+    function phaseForDate(dt, lmpDt, len) {
+      return phaseForDayNum(posMod(daysBetween(lmpDt, dt), len));
+    }
+
+    function cycleDayFor(dt, lmpDt, len) {
+      return posMod(daysBetween(lmpDt, dt), len);
+    }
+
+    function nextPeriodDate(lmpDt, len, today) {
+      const diff = daysBetween(lmpDt, today);
+      if (diff < 0) return new Date(+lmpDt);
+      const rem = posMod(diff, len);
+      const nd = new Date(+today);
+      nd.setDate(nd.getDate() + (len - rem));
+      return nd;
+    }
+
+    function fmtNice(d) {
+      return `${MN[d.getMonth()].slice(0, 3)} ${d.getDate()}, ${d.getFullYear()}`;
+    }
+
+    function parseInput(v) {
+      const p = v.split('-');
+      return new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+    }
+
+    function dkey(d) { return `${d.getFullYear()}.${d.getMonth()}.${d.getDate()}`; }
+
+    // --- Render ---
+
+    function render() {
+      if (!elLmp.value) {
+        elSt.innerHTML = '';
+        elCal.innerHTML =
+          '<div class="empty-state">' +
+          '<h2>Set your last period date</h2>' +
+          '<p>Enter the start date of your most recent menstruation above to see your cycle phases projected across three months.</p>' +
+          '</div>';
+        return;
+      }
+
+      const lmpDt = parseInput(elLmp.value);
+      const len = parseInt(elClen.value, 10) || 28;
+      const today = new Date();
+
+      const info = phaseForDate(today, lmpDt, len);
+      const np = nextPeriodDate(lmpDt, len, today);
+      const until = daysBetween(today, np);
+      const cd = cycleDayFor(today, lmpDt, len) + 1;
+      const untilStr = until <= 0 ? 'Today' : until === 1 ? 'Tomorrow' : `In ${until} days`;
+
+      elSt.innerHTML =
+        `<div class="status-card">` +
+        `<div class="st-item"><div class="st-lbl">Current Phase</div><div class="st-val ${PCLS[info.p]}">${PNAME[info.p]}</div></div>` +
+        `<div class="st-item"><div class="st-lbl">Cycle Day</div><div class="st-val">${cd} of ${len}</div></div>` +
+        `<div class="st-item"><div class="st-lbl">Next Period</div><div class="st-val">${untilStr}</div></div>` +
+        `<div class="st-item"><div class="st-lbl">Next Period Date</div><div class="st-val">${fmtNice(np)}</div></div>` +
+        `</div>`;
+
+      const startMo = new Date(today.getFullYear(), today.getMonth(), 1);
+      let html = '<div class="cal-grid">';
+      for (let mi = 0; mi < 3; mi++) {
+        const moDate = new Date(startMo.getFullYear(), startMo.getMonth() + mi, 1);
+        html += buildMonth(moDate, lmpDt, len, today, mi);
+      }
+      html += '</div>';
+      elCal.innerHTML = html;
+    }
+
+    function buildMonth(moDate, lmpDt, len, today, animIdx) {
+      const yr = moDate.getFullYear();
+      const mo = moDate.getMonth();
+      const daysInMo = new Date(yr, mo + 1, 0).getDate();
+      const firstDow = new Date(yr, mo, 1).getDay();
+      const todayKey = dkey(today);
+      const lmpKey = dkey(lmpDt);
+
+      let h = `<div class="mo-card" style="animation-delay:${animIdx * 0.07}s">`;
+      h += `<div class="mo-name">${MN[mo]}<span class="yr">${yr}</span></div>`;
+
+      h += '<div class="wk-row">';
+      for (let w = 0; w < 7; w++) h += `<div class="wk-cell">${WD[w]}</div>`;
+      h += '</div>';
+
+      h += '<div class="dy-grid">';
+      for (let e = 0; e < firstDow; e++) h += '<div class="dy"></div>';
+
+      for (let d = 1; d <= daysInMo; d++) {
+        const cellDt = new Date(yr, mo, d);
+        const ck = dkey(cellDt);
+        const isToday = ck === todayKey;
+        const isStart = ck === lmpKey;
+        const pi = phaseForDate(cellDt, lmpDt, len);
+
+        let cls = `dy ${PCLS[pi.p]}`;
+        if (isToday) cls += ' today';
+        if (isStart) cls += ' start';
+
+        h += `<div class="${cls}"><span>${d}</span></div>`;
+      }
+
+      h += '</div></div>';
+      return h;
+    }
+
+    // --- Init ---
+    updateShareState();
+    render();
+  </script>
+</body>
+</html>
