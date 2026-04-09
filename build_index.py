@@ -1,11 +1,17 @@
 """Generate index.html listing all HTML tools in the repository."""
 
+from dataclasses import dataclass
 import subprocess
 from datetime import datetime
 from html.parser import HTMLParser
 from pathlib import Path
+from typing import Final
 
 EXCLUDED = {"index.html", "404.html"}
+
+# Example: Apr 9, 2026
+# Example: Dec 31, 2025
+DATE_DISPLAY_FORMAT: Final[str] = "%b %-d, %Y"
 
 
 class MetadataParser(HTMLParser):
@@ -13,8 +19,8 @@ class MetadataParser(HTMLParser):
 
     def __init__(self):
         super().__init__()
-        self.title = None
-        self.description = None
+        self.title: str | None = None
+        self.description: str | None = None
         self._in_title = False
 
     def handle_starttag(self, tag, attrs):
@@ -34,34 +40,41 @@ class MetadataParser(HTMLParser):
             self._in_title = False
 
 
-def get_git_date(filepath: str, first: bool = False) -> str | None:
+def get_git_date(filepath: str, first: bool = False) -> datetime | None:
     """Get a git date for a file. If first=True, get creation date; otherwise last modified."""
     if first:
-        cmd = ["git", "log", "--follow", "--diff-filter=A", "--format=%aI", "--", filepath]
+        cmd = [
+            "git",
+            "log",
+            "--follow",
+            "--diff-filter=A",
+            "--format=%aI",
+            "--",
+            filepath,
+        ]
     else:
         cmd = ["git", "log", "-1", "--format=%aI", "--", filepath]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         lines = result.stdout.strip().splitlines()
         if lines:
-            return lines[-1] if first else lines[0]
-    except (subprocess.CalledProcessError, FileNotFoundError):
+            iso_date = lines[-1] if first else lines[0]
+            return datetime.fromisoformat(iso_date)
+    except (subprocess.CalledProcessError, FileNotFoundError, ValueError):
         pass
     return None
 
 
-def format_date(iso_date: str | None) -> str | None:
-    """Format an ISO date string to 'Mon D, YYYY'."""
-    if not iso_date:
-        return None
-    try:
-        dt = datetime.fromisoformat(iso_date)
-        return dt.strftime("%b %-d, %Y")
-    except ValueError:
-        return None
+@dataclass
+class Tool:
+    filename: str
+    title: str
+    description: str
+    created: datetime | None
+    updated: datetime | None
 
 
-def gather_tools() -> list[dict]:
+def gather_tools() -> list[Tool]:
     """Scan root for HTML files and extract metadata."""
     tools = []
     for path in sorted(Path(".").glob("*.html")):
@@ -69,39 +82,41 @@ def gather_tools() -> list[dict]:
             continue
         parser = MetadataParser()
         parser.feed(path.read_text())
-        created_iso = get_git_date(path.name, first=True)
-        updated_iso = get_git_date(path.name, first=False)
-        tools.append({
-            "filename": path.name,
-            "title": parser.title or path.stem.replace("-", " ").title(),
-            "description": parser.description or "",
-            "created": format_date(created_iso),
-            "updated": format_date(updated_iso),
-            "created_iso": created_iso or "",
-        })
-    # Sort newest first
-    tools.sort(key=lambda t: t["created_iso"], reverse=True)
+        created_dt = get_git_date(path.name, first=True)
+        updated_dt = get_git_date(path.name, first=False)
+        tools.append(
+            Tool(
+                filename=path.name,
+                title=parser.title or path.stem.replace("-", " ").title(),
+                description=parser.description or "",
+                created=created_dt,
+                updated=updated_dt,
+            )
+        )
     return tools
 
 
-def build_tool_card(tool: dict) -> str:
+def build_tool_card(tool: Tool) -> str:
     """Generate HTML for a single tool card."""
+    created_text = tool.created.strftime(DATE_DISPLAY_FORMAT) if tool.created else None
+    updated_text = tool.updated.strftime(DATE_DISPLAY_FORMAT) if tool.updated else None
+
     dates = ""
-    if tool["created"]:
-        dates += f'<span class="date">Added {tool["created"]}</span>'
-        if tool["updated"] and tool["updated"] != tool["created"]:
-            dates += f' <span class="date sep">&middot;</span> <span class="date">Updated {tool["updated"]}</span>'
+    if created_text:
+        dates += f'<span class="date">Added {created_text}</span>'
+        if updated_text and updated_text != created_text:
+            dates += f' <span class="date sep">&middot;</span> <span class="date">Updated {updated_text}</span>'
 
-    desc = f'<p class="desc">{tool["description"]}</p>' if tool["description"] else ""
+    desc = f'<p class="desc">{tool.description}</p>' if tool.description else ""
 
-    return f"""    <a class="card" href="{tool['filename']}">
-      <h2>{tool['title']}</h2>
+    return f"""    <a class="card" href="{tool.filename}">
+      <h2>{tool.title}</h2>
       {desc}
       <div class="dates">{dates}</div>
     </a>"""
 
 
-def build_html(tools: list[dict]) -> str:
+def build_html(tools: list[Tool]) -> str:
     """Generate the full index.html page."""
     cards = "\n".join(build_tool_card(t) for t in tools)
     count = len(tools)
@@ -176,6 +191,21 @@ def build_html(tools: list[dict]) -> str:
     .sep {{
       margin: 0 0.15rem;
     }}
+    @media (max-width: 600px) {{
+      body {{
+        padding: 1.25rem 0.75rem;
+      }}
+      h1 {{
+        font-size: 1.75rem;
+      }}
+      .tagline {{
+        margin-bottom: 1.5rem;
+        font-size: 1rem;
+      }}
+      .card {{
+        padding: 1rem;
+      }}
+    }}
     footer {{
       margin-top: 3rem;
       color: #5f6368;
@@ -199,6 +229,8 @@ def build_html(tools: list[dict]) -> str:
 
 if __name__ == "__main__":
     tools = gather_tools()
+    # Sort newest first
+    tools.sort(key=lambda t: t.created or datetime.min, reverse=True)
     html = build_html(tools)
     Path("index.html").write_text(html)
     print(f"Generated index.html with {len(tools)} tools")
