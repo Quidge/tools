@@ -1,8 +1,8 @@
 # Overview
 
-This repository contains simple tools and scripts. Many of these are simple HTML applications available statically when loaded from ./<name-of-tool>.html.
+This repository contains simple tools and scripts. Most tools are single-file HTML apps served statically at `/<tool-name>.html`.
 
-This repository is hosted via GitHub Pages at the domain `tools.jonathandemirgian.com`, serving from the `main` branch.
+The site is deployed via GitHub Pages at `tools.jonathandemirgian.com` from the `main` branch.
 
 ## Repository structure
 
@@ -10,19 +10,33 @@ This repository is hosted via GitHub Pages at the domain `tools.jonathandemirgia
 ./
 ├── .claude/                # Instructions and configuration for Claude Code
 ├── .github/
-│   └── workflows/
-│       └── pages.yml
-├── 404.html                # 404 page GitHub Pages displays if it cannot resolve a path
-├── CNAME                   # Record for DNS to resolve correctly
-├── *.html                  # An HTML 'tool'
-└── pyproject.toml          # Python project config and dependencies
+│   └── workflows/
+│       └── pages.yml       # Builds index and deploys to GitHub Pages
+├── scripts/
+│   ├── build_index.py      # Generates index.html from root-level tool files
+│   └── serve.py            # Local static file server for repo root
+├── 404.html                # GitHub Pages fallback page
+├── CNAME                   # Custom domain mapping
+├── *.html                  # Root-level HTML tools
+├── index.html              # Generated tool index page
+└── pyproject.toml          # Python project metadata
 ```
 
 ## Useful commands
 
 ```shell
-uv run python -m http.server 8000
+# Build index page
+uv run python scripts/build_index.py --output-file index.html
+
+# Serve repo locally
+uv run python scripts/serve.py --port 8000
 ```
 
-To generate a webserver showing the current directory.
+Local site URL: `http://localhost:8000`
+
+## Notes
+
+- `index.html` is generated; do not hand-edit.
+- Tool `created` / `updated` dates are derived from git history for each tool file.
+- CI deploy workflow rebuilds `index.html` before publishing.
 

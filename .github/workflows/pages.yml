@@ -30,7 +30,7 @@ jobs:
         uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8.0.0
 
       - name: Build index page
-        run: uv run python build_index.py
+        run: uv run python scripts/build_index.py --output-file index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v6
