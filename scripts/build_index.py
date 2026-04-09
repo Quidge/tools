@@ -1,5 +1,6 @@
 """Generate index.html listing all HTML tools in the repository."""
 
+import argparse
 from dataclasses import dataclass
 import subprocess
 from datetime import datetime
@@ -227,10 +228,26 @@ def build_html(tools: list[Tool]) -> str:
 """
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--output-file",
+        type=Path,
+        required=True,
+        help="Path to write the generated index HTML",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
+    args = parse_args()
     tools = gather_tools()
     # Sort newest first
     tools.sort(key=lambda t: t.created or datetime.min, reverse=True)
     html = build_html(tools)
-    Path("index.html").write_text(html)
-    print(f"Generated index.html with {len(tools)} tools")
+    if not args.output_file.parent.exists():
+        raise SystemExit(
+            f"Parent directory does not exist: {args.output_file.parent}"
+        )
+    args.output_file.write_text(html)
+    print(f"Generated {args.output_file} with {len(tools)} tools")
