@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rank Vote</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, sans-serif; background: #f8f9fa; color: #202124; line-height: 1.5; }
+button, input { font: inherit; }
+#app { max-width: 800px; margin: 0 auto; padding: 20px; }
+h1 { font-size: 1.5rem; margin-bottom: 16px; }
+
+.card { background: white; border: 1px solid #dadce0; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 10px 20px; border: 1px solid #dadce0; border-radius: 8px;
+  background: white; color: #202124; font-size: 0.95rem; cursor: pointer;
+  transition: background 0.15s; text-decoration: none;
+}
+.btn:hover:not(:disabled) { background: #f1f3f4; }
+.btn:disabled { color: #9aa0a6; opacity: 0.5; cursor: not-allowed; }
+.btn:focus-visible { outline: 2px solid #1a73e8; outline-offset: 2px; }
+.btn-primary { background: #1a73e8; color: white; border-color: #1a73e8; }
+.btn-primary:hover:not(:disabled) { background: #1557b0; }
+.btn-full { width: 100%; }
+
+input[type="text"] {
+  width: 100%; padding: 10px 12px; border: 1px solid #dadce0; border-radius: 8px;
+  font-size: 0.95rem; color: #202124; background: white;
+}
+input[type="text"]:focus-visible { outline: 2px solid #1a73e8; outline-offset: -1px; border-color: #1a73e8; }
+
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: #323232; color: white; padding: 10px 24px; border-radius: 8px;
+  z-index: 2000; opacity: 0; transition: opacity 0.2s ease; pointer-events: none;
+  font-size: 0.9rem; white-space: nowrap;
+}
+.toast.visible { opacity: 1; }
+
+.error-msg {
+  background: #fce8e6; color: #d93025; border: 1px solid #f5c6cb; border-radius: 12px;
+  padding: 24px; margin-bottom: 16px; text-align: center;
+}
+.error-msg strong { display: block; margin-bottom: 8px; font-size: 1.1rem; }
+
+.steps { list-style: none; counter-reset: step; margin: 20px 0; }
+.steps li {
+  counter-increment: step; padding: 10px 0 10px 48px; position: relative;
+  color: #5f6368; font-size: 1rem;
+}
+.steps li::before {
+  content: counter(step); position: absolute; left: 0; top: 8px;
+  width: 32px; height: 32px; border-radius: 50%; background: #1a73e8; color: white;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem;
+}
+
+.section { margin-bottom: 24px; }
+.section-title {
+  font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+  color: #5f6368; margin-bottom: 12px;
+}
+
+.field-group { margin-bottom: 16px; }
+.field-label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 0.95rem; }
+
+.choice-input-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+.choice-input-row input { flex: 1; }
+.remove-btn {
+  width: 36px; height: 36px; border: none; background: none; color: #d93025;
+  font-size: 1.3rem; cursor: pointer; border-radius: 8px; display: flex;
+  align-items: center; justify-content: center; flex-shrink: 0;
+}
+.remove-btn:hover { background: #fce8e6; }
+.remove-btn:focus-visible { outline: 2px solid #1a73e8; outline-offset: 2px; }
+
+.choice-slot {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+}
+.choice-rank-num {
+  font-size: 1.1rem; font-weight: 700; color: #9aa0a6; min-width: 28px; text-align: right;
+  flex-shrink: 0;
+}
+.choice-row {
+  display: flex; align-items: center; border-radius: 10px; padding: 12px 16px;
+  border-left: 5px solid; gap: 12px; flex: 1; min-width: 0;
+}
+.choice-text { flex: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arrows { display: flex; gap: 4px; }
+.arrow-btn {
+  width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(0,0,0,0.08); border-radius: 8px; background: rgba(255,255,255,0.6);
+  cursor: pointer; font-size: 1.2rem; color: #5f6368; transition: background 0.15s;
+}
+.arrow-btn:hover:not(:disabled) { background: rgba(255,255,255,0.9); }
+.arrow-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+.arrow-btn:focus-visible { outline: 2px solid #1a73e8; outline-offset: 2px; }
+
+.vote-code-line {
+  font-size: 1.5rem; font-weight: 500; color: #202124; margin-bottom: 16px; padding: 16px 0;
+}
+.vote-code-display {
+  font-family: 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
+  font-size: 1.5rem; font-weight: 700; letter-spacing: 0.1em;
+  color: #202124; background: #e8eaed; padding: 4px 14px; border-radius: 8px;
+}
+
+.share-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.share-row input {
+  flex: 1; font-family: monospace; font-size: 0.85rem; background: #f8f9fa; color: #5f6368;
+}
+
+.vote-form { display: flex; gap: 8px; margin-bottom: 16px; align-items: flex-start; }
+.vote-form input[name="name"] { flex: 1; min-width: 120px; }
+.code-input {
+  flex: 0 0 120px; text-transform: uppercase; font-family: monospace; letter-spacing: 0.1em;
+}
+.code-input:valid:not(:placeholder-shown) { border-color: #34a853; }
+.code-input:invalid:not(:placeholder-shown) { border-color: #d93025; }
+
+.vote-entry { background: #f8f9fa; border-radius: 8px; margin-bottom: 6px; }
+.vote-entry-header {
+  display: flex; align-items: center; padding: 8px 12px; gap: 8px; cursor: pointer;
+}
+.vote-entry-header:hover { background: rgba(0,0,0,0.02); border-radius: 8px; }
+.vote-name { flex: 1; font-weight: 500; }
+.vote-code-chip {
+  font-family: 'SF Mono', Menlo, monospace; font-size: 0.85rem; color: #202124;
+  background: #e8eaed; padding: 2px 8px; border-radius: 4px; letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.vote-code-label { color: #5f6368; font-size: 0.85rem; }
+.vote-toggle {
+  border: none; background: none; color: #5f6368; cursor: pointer; font-size: 1.1rem;
+  padding: 4px; transition: transform 0.15s;
+}
+.vote-toggle.open { transform: rotate(180deg); }
+.remove-vote {
+  border: none; background: none; color: #d93025; cursor: pointer; font-size: 1.1rem;
+  padding: 4px 8px; border-radius: 4px;
+}
+.remove-vote:hover { background: #fce8e6; }
+.remove-vote:focus-visible { outline: 2px solid #1a73e8; outline-offset: 2px; }
+.vote-detail { display: none; padding: 4px 12px 10px; }
+.vote-detail.open { display: block; }
+.vote-detail-row {
+  display: flex; align-items: center; padding: 4px 10px; border-radius: 6px;
+  margin-bottom: 3px; border-left: 3px solid; gap: 8px; font-size: 0.9rem;
+  min-width: 0;
+}
+.vote-detail-rank { color: #5f6368; min-width: 20px; flex-shrink: 0; font-weight: 600; font-size: 0.85rem; }
+.vote-detail-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+.result-row {
+  display: flex; align-items: center; padding: 10px 16px; border-radius: 10px;
+  margin-bottom: 6px; border-left: 5px solid; gap: 12px;
+}
+.result-rank { font-weight: 700; font-size: 1.1rem; min-width: 32px; color: #5f6368; }
+.result-text { flex: 1; font-weight: 500; }
+.result-score { color: #5f6368; font-size: 0.9rem; white-space: nowrap; }
+
+.empty-state { color: #9aa0a6; text-align: center; padding: 16px; }
+
+.qr-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+}
+.qr-modal {
+  background: white; border-radius: 16px; padding: 24px;
+  text-align: center; position: relative; max-width: 320px; width: 90%;
+}
+.qr-modal h3 { margin: 0 0 16px; font-size: 1rem; color: #5f6368; }
+.qr-close {
+  position: absolute; top: 8px; right: 12px; border: none; background: none;
+  font-size: 1.5rem; cursor: pointer; color: #5f6368; padding: 4px;
+}
+.qr-close:hover { color: #202124; }
+.qr-target { display: inline-block; }
+.qr-target img, .qr-target canvas { display: block; margin: 0 auto; }
+
+@media (max-width: 600px) {
+  #app { padding: 12px; }
+  .vote-code-line { font-size: 1.3rem; }
+  .vote-code-display { font-size: 1.3rem; }
+  .vote-form { flex-wrap: wrap; }
+  .vote-form input[name="name"], .code-input, .vote-form .btn { width: 100%; flex: none; }
+  .share-row { flex-direction: column; }
+  .share-row .btn { width: 100%; }
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+'use strict';
+
+// --- Crockford's Base32 ---
+// Alphabet: 0-9 A-H J K M N P-T V-Z (excludes I, L, O, U)
+// Error corrections on input: O→0, I→1, L→1
+const CB32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+const CB32_VAL = {};
+for (let i = 0; i < CB32.length; i++) CB32_VAL[CB32[i]] = i;
+CB32_VAL['O'] = 0; CB32_VAL['I'] = 1; CB32_VAL['L'] = 1;
+
+// Regex character class for valid Crockford Base32 chars (after normalization)
+const CB32_CHAR_CLASS = '0-9A-HJ-KM-NP-TV-Z';
+
+// --- State ---
+const state = {
+  mode: 'landing',   // landing | create | vote | tally | error
+  title: '',         // create mode
+  choices: ['', ''], // create mode
+  election: null,    // vote/tally: {v, title, choices, cs}
+  encodedData: '',   // base64url-encoded election payload
+  ranking: [],       // vote mode: choice indices in rank order
+  votes: []          // tally mode: [{name, code}]
+};
+
+// --- Helpers ---
+
+function escapeHTML(str) {
+  const el = document.createElement('span');
+  el.textContent = str;
+  return el.innerHTML;
+}
+
+function escapeAttr(str) {
+  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function showQRModal(text, title) {
+  if (typeof QRCode === 'undefined') { showToast('QR library not loaded \u2014 check your connection'); return; }
+  const overlay = document.createElement('div');
+  overlay.className = 'qr-overlay';
+  overlay.innerHTML = `<div class="qr-modal">
+    <button class="qr-close" aria-label="Close">\u00d7</button>
+    <h3>${escapeHTML(title)}</h3>
+    <div class="qr-target"></div>
+  </div>`;
+  document.body.appendChild(overlay);
+  new QRCode(overlay.querySelector('.qr-target'), {
+    text, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M
+  });
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay || e.target.closest('.qr-close')) overlay.remove();
+  });
+  const onKey = e => { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', onKey); } };
+  document.addEventListener('keydown', onKey);
+}
+
+function showToast(message) {
+  let t = document.getElementById('toast');
+  if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; document.body.appendChild(t); }
+  t.textContent = message;
+  t.classList.add('visible');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.classList.remove('visible'), 2000);
+}
+
+// --- Base64url ---
+// Standard base64 with + → -, / → _, padding stripped. Handles unicode via TextEncoder.
+
+function b64uEncode(bytes) {
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function b64uDecode(str) {
+  str = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (str.length % 4) str += '=';
+  const bin = atob(str);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+// --- Crockford's Base32 encode/decode ---
+
+function cb32Encode(num, width) {
+  if (num === 0) return '0'.repeat(width);
+  let r = '';
+  while (num > 0) { r = CB32[num % 32] + r; num = Math.floor(num / 32); }
+  return r.padStart(width, '0');
+}
+
+function cb32Decode(str) {
+  str = str.toUpperCase();
+  let n = 0;
+  for (const ch of str) {
+    if (!(ch in CB32_VAL)) return null;
+    n = n * 32 + CB32_VAL[ch];
+  }
+  return n;
+}
+
+function cb32Normalize(str) {
+  return str.toUpperCase().replace(/O/g, '0').replace(/[IL]/g, '1');
+}
+
+// --- Factorial & vote code width ---
+
+function factorial(n) {
+  let r = 1;
+  for (let i = 2; i <= n; i++) r *= i;
+  return r;
+}
+
+// Number of Crockford Base32 digits needed to encode all permutations of N items
+function codeWidth(n) {
+  const max = factorial(n) - 1;
+  if (max === 0) return 1;
+  let w = 0, pow = 1;
+  while (pow <= max) { pow *= 32; w++; }
+  return w;
+}
+
+// --- Lehmer code ---
+// Vote codes encode a ranking permutation as an integer via the factorial number system.
+// permutation[rank] = choice index. Lehmer code converts this to a unique integer in [0, N!).
+
+function permToInt(perm) {
+  const n = perm.length;
+  const avail = [...Array(n).keys()];
+  let num = 0;
+  for (let i = 0; i < n; i++) {
+    const idx = avail.indexOf(perm[i]);
+    num = num * (n - i) + idx;
+    avail.splice(idx, 1);
+  }
+  return num;
+}
+
+function intToPerm(num, n) {
+  const avail = [...Array(n).keys()];
+  const perm = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const f = factorial(i);
+    const idx = Math.floor(num / f);
+    num = num % f;
+    perm.push(avail[idx]);
+    avail.splice(idx, 1);
+  }
+  return perm;
+}
+
+// --- Election data ---
+// URL fragment payload: #vote=<b64u> or #tally=<b64u>
+// Payload is base64url of JSON: {"v":1,"title":"...","choices":[...],"cs":"XXXX"}
+// Checksum: first 4 base64url chars of SHA-256 of {"title":"...","choices":[...]}
+
+async function computeChecksum(title, choices) {
+  const canonical = JSON.stringify({ title, choices });
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical));
+  return b64uEncode(new Uint8Array(hash)).slice(0, 4);
+}
+
+function encodeElection(title, choices, cs) {
+  return b64uEncode(new TextEncoder().encode(JSON.stringify({ v: 1, title, choices, cs })));
+}
+
+function decodeElection(b64) {
+  try {
+    const d = JSON.parse(new TextDecoder().decode(b64uDecode(b64)));
+    if (d.v !== 1 || typeof d.title !== 'string' || !d.title.trim()) return null;
+    if (!Array.isArray(d.choices) || d.choices.length < 2 || d.choices.length > 8) return null;
+    if (d.choices.some(c => typeof c !== 'string' || !c.trim())) return null;
+    if (typeof d.cs !== 'string') return null;
+    return d;
+  } catch { return null; }
+}
+
+// --- Choice colors ---
+// 8 pre-computed pastel colors, maximally separated for visual distinction.
+// Color is assigned by position in the ballot's choice list, not by text hash.
+// This guarantees every choice gets a unique color (max 8 choices = 8 colors).
+
+const COLOR_PALETTE = [
+  { bg: 'hsl(0,60%,90%)',    border: 'hsl(0,65%,55%)' },    // Rose
+  { bg: 'hsl(45,65%,88%)',   border: 'hsl(45,75%,45%)' },   // Amber
+  { bg: 'hsl(80,45%,88%)',   border: 'hsl(80,55%,45%)' },   // Lime
+  { bg: 'hsl(145,45%,88%)',  border: 'hsl(145,55%,40%)' },  // Mint
+  { bg: 'hsl(205,60%,89%)',  border: 'hsl(205,65%,50%)' },  // Sky
+  { bg: 'hsl(235,50%,91%)',  border: 'hsl(235,55%,55%)' },  // Blue
+  { bg: 'hsl(295,40%,90%)',  border: 'hsl(295,45%,52%)' },  // Purple
+  { bg: 'hsl(330,50%,90%)',  border: 'hsl(330,55%,52%)' },  // Magenta
+];
+
+function choiceColor(index) {
+  return COLOR_PALETTE[index % COLOR_PALETTE.length];
+}
+
+// --- Scoring ---
+// Borda count: rank 0 (top) = N-1 points, rank N-1 = 0 points. Competition ranking for ties.
+
+function tallyResults(choices, votes) {
+  const n = choices.length;
+  const scores = new Array(n).fill(0);
+  let valid = 0;
+  for (const v of votes) {
+    const num = cb32Decode(v.code);
+    if (num === null || num >= factorial(n)) continue;
+    const perm = intToPerm(num, n);
+    for (let r = 0; r < n; r++) scores[perm[r]] += n - 1 - r;
+    valid++;
+  }
+  const results = choices.map((text, i) => ({ text, score: scores[i], index: i }));
+  results.sort((a, b) => b.score - a.score || a.index - b.index);
+  for (let i = 0; i < results.length; i++) {
+    results[i].rank = (i === 0 || results[i].score !== results[i - 1].score) ? i + 1 : results[i - 1].rank;
+  }
+  return { results, valid };
+}
+
+// --- Render ---
+
+function render() {
+  const app = document.getElementById('app');
+  switch (state.mode) {
+    case 'landing': app.innerHTML = renderLanding(); break;
+    case 'create':  app.innerHTML = renderCreate(); break;
+    case 'vote':    app.innerHTML = renderVote(); break;
+    case 'tally':   app.innerHTML = renderTally(); break;
+    default:        app.innerHTML = renderError(); break;
+  }
+  document.title = (state.mode === 'vote' || state.mode === 'tally')
+    ? `${state.election.title} \u2014 Rank Vote` : 'Rank Vote';
+}
+
+function renderLanding() {
+  return `
+    <h1>Rank Vote</h1>
+    <div class="card">
+      <p style="margin-bottom:16px;color:#5f6368">A simple ranked-choice voting tool for small groups. No accounts, no tracking \u2014 just share a link.</p>
+      <ol class="steps">
+        <li>Create a ballot with your choices</li>
+        <li>Share the voting link with your group</li>
+        <li>Everyone ranks the choices \u2014 each person gets a short vote code</li>
+        <li>Collect the codes and enter them to see the results</li>
+      </ol>
+      <button class="btn btn-primary btn-full" data-action="go-create" style="margin-top:20px">Create a ballot</button>
+    </div>`;
+}
+
+function renderCreate() {
+  const valid = state.title.trim() && state.choices.length >= 2 && state.choices.every(c => c.trim());
+  let rows = '';
+  for (let i = 0; i < state.choices.length; i++) {
+    const rm = state.choices.length > 2
+      ? `<button class="remove-btn" data-action="remove-choice" data-index="${i}" aria-label="Remove choice ${i + 1}">\u00d7</button>` : '';
+    rows += `<div class="choice-input-row">
+      <input type="text" value="${escapeAttr(state.choices[i])}" placeholder="Choice ${i + 1}" data-field="choice" data-index="${i}" data-focus-id="choice-${i}">
+      ${rm}</div>`;
+  }
+  return `
+    <h1>Create a Ballot</h1>
+    <div class="card">
+      <div class="field-group">
+        <label class="field-label">Title</label>
+        <input type="text" value="${escapeAttr(state.title)}" placeholder="What are we voting on?" data-field="title" data-focus-id="title">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Choices</label>
+        ${rows}
+        ${state.choices.length < 8 ? `<button class="btn" data-action="add-choice" style="margin-top:8px">+ Add choice</button>` : ''}
+      </div>
+      <button class="btn btn-primary btn-full" data-action="create-ballot" ${valid ? '' : 'disabled'}>Create ballot</button>
+    </div>`;
+}
+
+function renderVote() {
+  const { title, choices } = state.election;
+  const n = choices.length;
+  const code = cb32Encode(permToInt(state.ranking), codeWidth(n));
+  let rows = '';
+  for (let r = 0; r < n; r++) {
+    const ci = state.ranking[r];
+    const c = choiceColor(ci);
+    rows += `<div class="choice-slot">
+      <span class="choice-rank-num">${r + 1}.</span>
+      <div class="choice-row" style="background:${c.bg};border-left-color:${c.border}">
+        <span class="choice-text">${escapeHTML(choices[ci])}</span>
+        <div class="arrows">
+          <button class="arrow-btn" data-action="move-up" data-rank="${r}" ${r === 0 ? 'disabled' : ''} aria-label="Move up">\u2191</button>
+          <button class="arrow-btn" data-action="move-down" data-rank="${r}" ${r === n - 1 ? 'disabled' : ''} aria-label="Move down">\u2193</button>
+        </div>
+      </div></div>`;
+  }
+  return `
+    <h1>${escapeHTML(title)}</h1>
+    <p style="color:#5f6368;margin-bottom:16px">Rank the choices in your preferred order.</p>
+    <div class="section">${rows}</div>
+    <div class="card" style="text-align:center">
+      <div class="vote-code-line">Code: <span class="vote-code-display">${code}</span></div>
+      <button class="btn btn-primary btn-full" data-action="copy-code" data-code="${code}">Copy vote code</button>
+    </div>`;
+}
+
+function renderTally() {
+  const { title, choices } = state.election;
+  const n = choices.length;
+  const w = codeWidth(n);
+  const voteURL = location.origin + location.pathname + '#vote=' + state.encodedData;
+  const pattern = `[${CB32_CHAR_CLASS}]{${w}}`;
+  const { results, valid } = tallyResults(choices, state.votes);
+
+  let voteList = '';
+  for (let i = 0; i < state.votes.length; i++) {
+    const v = state.votes[i];
+    const num = cb32Decode(v.code);
+    let detailRows = '';
+    if (num !== null && num < factorial(n)) {
+      const perm = intToPerm(num, n);
+      for (let r = 0; r < n; r++) {
+        const c = choiceColor(perm[r]);
+        detailRows += `<div class="vote-detail-row" style="background:${c.bg};border-left-color:${c.border}">
+          <span class="vote-detail-rank">${r + 1}.</span>
+          <span class="vote-detail-text">${escapeHTML(choices[perm[r]])}</span>
+        </div>`;
+      }
+    }
+    voteList += `<div class="vote-entry">
+      <div class="vote-entry-header" data-action="toggle-vote" data-index="${i}">
+        <span class="vote-name">${escapeHTML(v.name)}</span>
+        <span><span class="vote-code-label">Code: </span><span class="vote-code-chip">${escapeHTML(v.code)}</span></span>
+        <span class="vote-toggle" data-toggle-index="${i}">\u25BE</span>
+        <button class="remove-vote" data-action="remove-vote" data-index="${i}" aria-label="Remove vote">\u00d7</button>
+      </div>
+      <div class="vote-detail" data-detail-index="${i}">${detailRows}</div>
+    </div>`;
+  }
+
+  let resultRows = '';
+  for (const r of results) {
+    const c = choiceColor(r.index);
+    resultRows += `<div class="result-row" style="background:${c.bg};border-left-color:${c.border}">
+      <span class="result-rank">#${r.rank}</span>
+      <span class="result-text">${escapeHTML(r.text)}</span>
+      <span class="result-score">${r.score} pts</span>
+    </div>`;
+  }
+
+  return `
+    <h1>${escapeHTML(title)}</h1>
+    <div class="card section">
+      <div class="section-title">Share with your group</div>
+      <div class="share-row">
+        <input type="text" value="${escapeAttr(voteURL)}" readonly aria-label="Vote link">
+        <button class="btn" data-action="copy-url">Copy</button>
+        <button class="btn" data-action="qr-vote-url">QR Code</button>
+      </div>
+      <a href="${escapeAttr(voteURL)}" target="_blank" rel="noopener" class="btn btn-full">Vote on this ballot yourself</a>
+    </div>
+    <div class="card section">
+      <div class="section-title">Enter votes</div>
+      <form class="vote-form" id="vote-form">
+        <input type="text" name="name" placeholder="Name" required aria-label="Voter name">
+        <input type="text" name="code" placeholder="Code" required class="code-input"
+          minlength="${w}" maxlength="${w}" pattern="${pattern}"
+          autocapitalize="characters" aria-label="Vote code">
+        <button type="submit" class="btn btn-primary">Add</button>
+      </form>
+      ${voteList || '<p class="empty-state">No votes entered yet</p>'}
+    </div>
+    <div class="card section">
+      <div class="section-title">Results</div>
+      <p style="color:#5f6368;margin-bottom:12px">${valid} vote${valid !== 1 ? 's' : ''}</p>
+      ${valid > 0 ? resultRows : '<p class="empty-state">Add votes to see results</p>'}
+    </div>`;
+}
+
+function renderError() {
+  return `
+    <div class="error-msg">
+      <strong>Invalid ballot link</strong>
+      <p>This link appears to be corrupted or invalid.</p>
+    </div>
+    <button class="btn btn-primary" data-action="go-create">Create a new ballot</button>`;
+}
+
+// --- Event delegation ---
+
+const app = document.getElementById('app');
+
+app.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+
+  if (action === 'go-create') { location.hash = '#create'; return; }
+
+  if (action === 'add-choice') {
+    syncCreateInputs();
+    state.choices.push('');
+    render();
+    setTimeout(() => {
+      const inputs = app.querySelectorAll('[data-field="choice"]');
+      inputs[inputs.length - 1]?.focus();
+    });
+    return;
+  }
+
+  if (action === 'remove-choice') {
+    syncCreateInputs();
+    state.choices.splice(+btn.dataset.index, 1);
+    render();
+    return;
+  }
+
+  if (action === 'create-ballot') { handleCreateBallot(); return; }
+
+  if (action === 'move-up') {
+    const r = +btn.dataset.rank;
+    if (r > 0) { [state.ranking[r], state.ranking[r - 1]] = [state.ranking[r - 1], state.ranking[r]]; render(); }
+    return;
+  }
+
+  if (action === 'move-down') {
+    const r = +btn.dataset.rank;
+    if (r < state.ranking.length - 1) { [state.ranking[r], state.ranking[r + 1]] = [state.ranking[r + 1], state.ranking[r]]; render(); }
+    return;
+  }
+
+  if (action === 'copy-code') {
+    navigator.clipboard.writeText(btn.dataset.code).then(
+      () => showToast('Vote code copied'),
+      () => showToast('Could not copy \u2014 check clipboard permissions')
+    );
+    return;
+  }
+
+  if (action === 'qr-vote-url') {
+    const voteURL = location.origin + location.pathname + '#vote=' + state.encodedData;
+    showQRModal(voteURL, 'Scan to vote');
+    return;
+  }
+
+  if (action === 'copy-url') {
+    const urlInput = app.querySelector('.share-row input');
+    navigator.clipboard.writeText(urlInput?.value || '').then(
+      () => showToast('Link copied'),
+      () => showToast('Could not copy \u2014 check clipboard permissions')
+    );
+    return;
+  }
+
+  if (action === 'toggle-vote') {
+    const idx = btn.dataset.index;
+    const detail = app.querySelector(`[data-detail-index="${idx}"]`);
+    const toggle = app.querySelector(`[data-toggle-index="${idx}"]`);
+    if (detail) detail.classList.toggle('open');
+    if (toggle) toggle.classList.toggle('open');
+    return;
+  }
+
+  if (action === 'remove-vote') {
+    e.stopPropagation();
+    state.votes.splice(+btn.dataset.index, 1);
+    render();
+    return;
+  }
+});
+
+app.addEventListener('input', (e) => {
+  if (e.target.matches('[data-field="title"]')) {
+    state.title = e.target.value;
+    updateCreateBtn();
+    return;
+  }
+
+  if (e.target.matches('[data-field="choice"]')) {
+    state.choices[+e.target.dataset.index] = e.target.value;
+    updateCreateBtn();
+    return;
+  }
+
+  // Crockford Base32 normalization on vote code input
+  if (e.target.matches('[name="code"]') && state.election) {
+    const input = e.target;
+    const pos = input.selectionStart;
+    const normalized = cb32Normalize(input.value);
+    if (normalized !== input.value) {
+      input.value = normalized;
+      input.setSelectionRange(pos, pos);
+    }
+    const n = state.election.choices.length;
+    const w = codeWidth(n);
+    if (normalized.length === w) {
+      const num = cb32Decode(normalized);
+      input.setCustomValidity(num === null || num >= factorial(n) ? 'Invalid vote code' : '');
+    } else {
+      input.setCustomValidity('');
+    }
+    return;
+  }
+
+  // Duplicate name — don't block via setCustomValidity; handled in submit handler
+});
+
+app.addEventListener('submit', (e) => {
+  if (e.target.id !== 'vote-form') return;
+  e.preventDefault();
+
+  const nameInput = e.target.querySelector('[name="name"]');
+  const codeInput = e.target.querySelector('[name="code"]');
+  const name = nameInput.value.trim();
+
+  if (!e.target.checkValidity()) { e.target.reportValidity(); return; }
+
+  const code = codeInput.value;
+  const n = state.election.choices.length;
+  const num = cb32Decode(code);
+  if (num === null || num >= factorial(n)) {
+    codeInput.setCustomValidity('Invalid vote code');
+    e.target.reportValidity();
+    return;
+  }
+
+  const dup = state.votes.some(v => v.name === name);
+  if (dup) {
+    state.votes = state.votes.filter(v => v.name !== name);
+    showToast(`Replaced previous vote from ${name}`);
+  }
+
+  state.votes.push({ name, code });
+  render();
+  setTimeout(() => app.querySelector('[name="name"]')?.focus());
+});
+
+window.addEventListener('hashchange', () => init());
+
+// --- Helpers ---
+
+function syncCreateInputs() {
+  const t = app.querySelector('[data-field="title"]');
+  if (t) state.title = t.value;
+  app.querySelectorAll('[data-field="choice"]').forEach((el, i) => { state.choices[i] = el.value; });
+}
+
+function updateCreateBtn() {
+  const btn = app.querySelector('[data-action="create-ballot"]');
+  if (!btn) return;
+  btn.disabled = !(state.title.trim() && state.choices.length >= 2 && state.choices.every(c => c.trim()));
+}
+
+async function handleCreateBallot() {
+  syncCreateInputs();
+  const title = state.title.trim();
+  const choices = state.choices.map(c => c.trim());
+  if (!title || choices.length < 2 || choices.some(c => !c)) return;
+
+  const cs = await computeChecksum(title, choices);
+  const encoded = encodeElection(title, choices, cs);
+
+  state.mode = 'tally';
+  state.election = { v: 1, title, choices, cs };
+  state.encodedData = encoded;
+  state.votes = [];
+  history.replaceState(null, '', '#tally=' + encoded);
+  render();
+}
+
+// --- Init ---
+
+async function init() {
+  const hash = location.hash;
+
+  if (!hash || hash === '#') {
+    state.mode = 'landing';
+    render();
+    return;
+  }
+
+  if (hash === '#create') {
+    state.mode = 'create';
+    state.title = '';
+    state.choices = ['', ''];
+    render();
+    return;
+  }
+
+  const m = hash.match(/^#(vote|tally)=(.+)$/);
+  if (!m) { state.mode = 'error'; render(); return; }
+
+  const [, mode, encoded] = m;
+  const election = decodeElection(encoded);
+  if (!election) { state.mode = 'error'; render(); return; }
+
+  const cs = await computeChecksum(election.title, election.choices);
+  if (cs !== election.cs) { state.mode = 'error'; render(); return; }
+
+  state.election = election;
+  state.encodedData = encoded;
+
+  if (mode === 'vote') {
+    state.mode = 'vote';
+    state.ranking = [...Array(election.choices.length).keys()];
+  } else {
+    state.mode = 'tally';
+    state.votes = [];
+  }
+  render();
+}
+
+init();
+</script>
+</body>
+</html>
