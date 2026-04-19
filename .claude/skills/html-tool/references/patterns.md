@@ -50,7 +50,7 @@ function render() {
 ```
 
 ### Pattern 3: Tool with CDN Libraries
-Use ES module imports or script tags from jsdelivr/cdnjs.
+Use ES module imports or script tags from jsdelivr/cdnjs. Always pin the version.
 
 ```html
 <!-- Script tag approach -->
@@ -60,6 +60,14 @@ Use ES module imports or script tags from jsdelivr/cdnjs.
 <script type="module">
   import lib from 'https://cdn.jsdelivr.net/npm/library@version/+esm';
 </script>
+```
+
+Guard against CDN load failure at runtime:
+```javascript
+if (typeof LibraryGlobal === 'undefined') {
+  showToast('Library not loaded — check your connection');
+  return;
+}
 ```
 
 ---
@@ -195,6 +203,58 @@ Dropzone CSS:
   background: #e8f0fe;
 }
 ```
+
+### Modal Dialog
+Use the native `<dialog>` element with `.showModal()`. Provides Escape dismissal, focus trapping, and backdrop for free. If your CSS has a `* { margin: 0 }` reset, add `margin: auto` to restore centering.
+
+```css
+.modal {
+  border: none; border-radius: 16px; padding: 24px;
+  max-width: 400px; width: 90%; margin: auto;
+}
+.modal::backdrop { background: rgba(0,0,0,0.5); }
+```
+
+```javascript
+function showModal(contentHTML) {
+  const dialog = document.createElement('dialog');
+  dialog.className = 'modal';
+  dialog.innerHTML = contentHTML;
+  document.body.appendChild(dialog);
+  dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
+  dialog.addEventListener('close', () => dialog.remove());
+  dialog.showModal();
+  return dialog;
+}
+```
+
+Dismisses via Escape (native), backdrop click (`e.target === dialog`), or any button calling `dialog.close()`. The `close` event handles cleanup for all paths — no leaked listeners or DOM nodes. Use the `autofocus` attribute on the primary action or close button inside the dialog.
+
+### Modal Dialog
+Use the native `<dialog>` element with `.showModal()`. Provides Escape dismissal, focus trapping, and backdrop for free. If your CSS has a `* { margin: 0 }` reset, add `margin: auto` to restore centering.
+
+```css
+.modal {
+  border: none; border-radius: 16px; padding: 24px;
+  max-width: 400px; width: 90%; margin: auto;
+}
+.modal::backdrop { background: rgba(0,0,0,0.5); }
+```
+
+```javascript
+function showModal(contentHTML) {
+  const dialog = document.createElement('dialog');
+  dialog.className = 'modal';
+  dialog.innerHTML = contentHTML;
+  document.body.appendChild(dialog);
+  dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
+  dialog.addEventListener('close', () => dialog.remove());
+  dialog.showModal();
+  return dialog;
+}
+```
+
+Dismisses via Escape (native), backdrop click (`e.target === dialog`), or any button calling `dialog.close()`. The `close` event handles cleanup for all paths — no leaked listeners or DOM nodes. Use the `autofocus` attribute on the primary action or close button inside the dialog.
 
 ### Show/Hide Sections
 Toggle visibility with a CSS class:
