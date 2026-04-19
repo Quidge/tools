@@ -1,0 +1,4 @@
+# Ignore all files in scratch directory. Useful for shoving interstitial plans
+# or other detritus that acrues over the course of a multi session plan.
+*
+!.gitignore
