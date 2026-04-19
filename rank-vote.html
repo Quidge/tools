@@ -7,7 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: system-ui, -apple-system, sans-serif; background: #f8f9fa; color: #202124; line-height: 1.5; }
+body { font-family: system-ui, sans-serif; background: #f8f9fa; color: #202124; line-height: 1.5; }
 button, input { font: inherit; }
 #app { max-width: 800px; margin: 0 auto; padding: 20px; }
 h1 { font-size: 1.5rem; margin-bottom: 16px; }
@@ -198,6 +198,10 @@ input[type="text"]:focus-visible { outline: 2px solid #1a73e8; outline-offset: -
 <script>
 'use strict';
 
+// --- Constants ---
+const MIN_CHOICES = 2;
+const MAX_CHOICES = 8;
+
 // --- Crockford's Base32 ---
 // Alphabet: 0-9 A-H J K M N P-T V-Z (excludes I, L, O, U)
 // Error corrections on input: O→0, I→1, L→1
@@ -215,7 +219,7 @@ const state = {
   title: '',         // create mode
   choices: ['', ''], // create mode
   election: null,    // vote/tally: {v, title, choices, cs}
-  encodedData: '',   // base64url-encoded election payload
+  encodedBallot: '',   // base64url-encoded election payload
   ranking: [],       // vote mode: choice indices in rank order
   votes: []          // tally mode: [{name, code}]
 };
@@ -257,8 +261,8 @@ function showToast(message) {
   if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; document.body.appendChild(t); }
   t.textContent = message;
   t.classList.add('visible');
-  clearTimeout(t._tid);
-  t._tid = setTimeout(() => t.classList.remove('visible'), 2000);
+  clearTimeout(t._timeout);
+  t._timeout = setTimeout(() => t.classList.remove('visible'), 2000);
 }
 
 // --- Base64url ---
@@ -284,7 +288,7 @@ function b64uDecode(str) {
 function cb32Encode(num, width) {
   if (num === 0) return '0'.repeat(width);
   let r = '';
-  while (num > 0) { r = CB32[num % 32] + r; num = Math.floor(num / 32); }
+  while (num > 0) { r = CB32[num % CB32.length] + r; num = Math.floor(num / CB32.length); }
   return r.padStart(width, '0');
 }
 
@@ -293,7 +297,7 @@ function cb32Decode(str) {
   let n = 0;
   for (const ch of str) {
     if (!(ch in CB32_VAL)) return null;
-    n = n * 32 + CB32_VAL[ch];
+    n = n * CB32.length + CB32_VAL[ch];
   }
   return n;
 }
@@ -315,7 +319,7 @@ function codeWidth(n) {
   const max = factorial(n) - 1;
   if (max === 0) return 1;
   let w = 0, pow = 1;
-  while (pow <= max) { pow *= 32; w++; }
+  while (pow <= max) { pow *= CB32.length; w++; }
   return w;
 }
 
@@ -365,12 +369,12 @@ function encodeElection(title, choices, cs) {
 
 function decodeElection(b64) {
   try {
-    const d = JSON.parse(new TextDecoder().decode(b64uDecode(b64)));
-    if (d.v !== 1 || typeof d.title !== 'string' || !d.title.trim()) return null;
-    if (!Array.isArray(d.choices) || d.choices.length < 2 || d.choices.length > 8) return null;
-    if (d.choices.some(c => typeof c !== 'string' || !c.trim())) return null;
-    if (typeof d.cs !== 'string') return null;
-    return d;
+    const data = JSON.parse(new TextDecoder().decode(b64uDecode(b64)));
+    if (data.v !== 1 || typeof data.title !== 'string' || !data.title.trim()) return null;
+    if (!Array.isArray(data.choices) || data.choices.length < MIN_CHOICES || data.choices.length > MAX_CHOICES) return null;
+    if (data.choices.some(c => typeof c !== 'string' || !c.trim())) return null;
+    if (typeof data.cs !== 'string') return null;
+    return data;
   } catch { return null; }
 }
 
@@ -394,6 +398,31 @@ function choiceColor(index) {
   return COLOR_PALETTE[index % COLOR_PALETTE.length];
 }
 
+function colorStyle(index) {
+  const color = choiceColor(index);
+  return `background:${color.bg};border-left-color:${color.border}`;
+}
+
+function isValidCode(code, numChoices) {
+  const num = cb32Decode(code);
+  return num !== null && num < factorial(numChoices);
+}
+
+function isBallotValid() {
+  return state.title.trim() && state.choices.length >= MIN_CHOICES && state.choices.every(c => c.trim());
+}
+
+function getVoteURL() {
+  return location.origin + location.pathname + '#vote=' + state.encodedBallot;
+}
+
+function copyToClipboard(text, successMsg) {
+  navigator.clipboard.writeText(text).then(
+    () => showToast(successMsg),
+    () => showToast('Could not copy \u2014 check clipboard permissions')
+  );
+}
+
 // --- Scoring ---
 // Borda count: rank 0 (top) = N-1 points, rank N-1 = 0 points. Competition ranking for ties.
 
@@ -402,9 +431,8 @@ function tallyResults(choices, votes) {
   const scores = new Array(n).fill(0);
   let valid = 0;
   for (const v of votes) {
-    const num = cb32Decode(v.code);
-    if (num === null || num >= factorial(n)) continue;
-    const perm = intToPerm(num, n);
+    if (!isValidCode(v.code, n)) continue;
+    const perm = intToPerm(cb32Decode(v.code), n);
     for (let r = 0; r < n; r++) scores[perm[r]] += n - 1 - r;
     valid++;
   }
@@ -447,10 +475,10 @@ function renderLanding() {
 }
 
 function renderCreate() {
-  const valid = state.title.trim() && state.choices.length >= 2 && state.choices.every(c => c.trim());
+  const valid = isBallotValid();
   let rows = '';
   for (let i = 0; i < state.choices.length; i++) {
-    const rm = state.choices.length > 2
+    const rm = state.choices.length > MIN_CHOICES
       ? `<button class="remove-btn" data-action="remove-choice" data-index="${i}" aria-label="Remove choice ${i + 1}">\u00d7</button>` : '';
     rows += `<div class="choice-input-row">
       <input type="text" value="${escapeAttr(state.choices[i])}" placeholder="Choice ${i + 1}" data-field="choice" data-index="${i}" data-focus-id="choice-${i}">
@@ -466,7 +494,7 @@ function renderCreate() {
       <div class="field-group">
         <label class="field-label">Choices</label>
         ${rows}
-        ${state.choices.length < 8 ? `<button class="btn" data-action="add-choice" style="margin-top:8px">+ Add choice</button>` : ''}
+        ${state.choices.length < MAX_CHOICES ? `<button class="btn" data-action="add-choice" style="margin-top:8px">+ Add choice</button>` : ''}
       </div>
       <button class="btn btn-primary btn-full" data-action="create-ballot" ${valid ? '' : 'disabled'}>Create ballot</button>
     </div>`;
@@ -474,19 +502,18 @@ function renderCreate() {
 
 function renderVote() {
   const { title, choices } = state.election;
-  const n = choices.length;
-  const code = cb32Encode(permToInt(state.ranking), codeWidth(n));
+  const numChoices = choices.length;
+  const code = cb32Encode(permToInt(state.ranking), codeWidth(numChoices));
   let rows = '';
-  for (let r = 0; r < n; r++) {
-    const ci = state.ranking[r];
-    const c = choiceColor(ci);
+  for (let r = 0; r < numChoices; r++) {
+    const choiceIdx = state.ranking[r];
     rows += `<div class="choice-slot">
       <span class="choice-rank-num">${r + 1}.</span>
-      <div class="choice-row" style="background:${c.bg};border-left-color:${c.border}">
-        <span class="choice-text">${escapeHTML(choices[ci])}</span>
+      <div class="choice-row" style="${colorStyle(choiceIdx)}">
+        <span class="choice-text">${escapeHTML(choices[choiceIdx])}</span>
         <div class="arrows">
           <button class="arrow-btn" data-action="move-up" data-rank="${r}" ${r === 0 ? 'disabled' : ''} aria-label="Move up">\u2191</button>
-          <button class="arrow-btn" data-action="move-down" data-rank="${r}" ${r === n - 1 ? 'disabled' : ''} aria-label="Move down">\u2193</button>
+          <button class="arrow-btn" data-action="move-down" data-rank="${r}" ${r === numChoices - 1 ? 'disabled' : ''} aria-label="Move down">\u2193</button>
         </div>
       </div></div>`;
   }
@@ -502,31 +529,29 @@ function renderVote() {
 
 function renderTally() {
   const { title, choices } = state.election;
-  const n = choices.length;
-  const w = codeWidth(n);
-  const voteURL = location.origin + location.pathname + '#vote=' + state.encodedData;
-  const pattern = `[${CB32_CHAR_CLASS}]{${w}}`;
+  const numChoices = choices.length;
+  const width = codeWidth(numChoices);
+  const voteURL = getVoteURL();
+  const pattern = `[${CB32_CHAR_CLASS}]{${width}}`;
   const { results, valid } = tallyResults(choices, state.votes);
 
   let voteList = '';
   for (let i = 0; i < state.votes.length; i++) {
-    const v = state.votes[i];
-    const num = cb32Decode(v.code);
+    const vote = state.votes[i];
     let detailRows = '';
-    if (num !== null && num < factorial(n)) {
-      const perm = intToPerm(num, n);
-      for (let r = 0; r < n; r++) {
-        const c = choiceColor(perm[r]);
-        detailRows += `<div class="vote-detail-row" style="background:${c.bg};border-left-color:${c.border}">
+    if (isValidCode(vote.code, numChoices)) {
+      const perm = intToPerm(cb32Decode(vote.code), numChoices);
+      for (let r = 0; r < numChoices; r++) {
+        detailRows += `<div class="vote-detail-row" style="${colorStyle(perm[r])}">
           <span class="vote-detail-rank">${r + 1}.</span>
           <span class="vote-detail-text">${escapeHTML(choices[perm[r]])}</span>
         </div>`;
       }
     }
     voteList += `<div class="vote-entry">
-      <div class="vote-entry-header" data-action="toggle-vote" data-index="${i}">
-        <span class="vote-name">${escapeHTML(v.name)}</span>
-        <span><span class="vote-code-label">Code: </span><span class="vote-code-chip">${escapeHTML(v.code)}</span></span>
+      <div class="vote-entry-header" data-action="toggle-vote" data-index="${i}" tabindex="0" role="button" aria-expanded="false">
+        <span class="vote-name">${escapeHTML(vote.name)}</span>
+        <span><span class="vote-code-label">Code: </span><span class="vote-code-chip">${escapeHTML(vote.code)}</span></span>
         <span class="vote-toggle" data-toggle-index="${i}">\u25BE</span>
         <button class="remove-vote" data-action="remove-vote" data-index="${i}" aria-label="Remove vote">\u00d7</button>
       </div>
@@ -535,12 +560,11 @@ function renderTally() {
   }
 
   let resultRows = '';
-  for (const r of results) {
-    const c = choiceColor(r.index);
-    resultRows += `<div class="result-row" style="background:${c.bg};border-left-color:${c.border}">
-      <span class="result-rank">#${r.rank}</span>
-      <span class="result-text">${escapeHTML(r.text)}</span>
-      <span class="result-score">${r.score} pts</span>
+  for (const result of results) {
+    resultRows += `<div class="result-row" style="${colorStyle(result.index)}">
+      <span class="result-rank">#${result.rank}</span>
+      <span class="result-text">${escapeHTML(result.text)}</span>
+      <span class="result-score">${result.score} pts</span>
     </div>`;
   }
 
@@ -560,7 +584,7 @@ function renderTally() {
       <form class="vote-form" id="vote-form">
         <input type="text" name="name" placeholder="Name" required aria-label="Voter name">
         <input type="text" name="code" placeholder="Code" required class="code-input"
-          minlength="${w}" maxlength="${w}" pattern="${pattern}"
+          minlength="${width}" maxlength="${width}" pattern="${pattern}"
           autocapitalize="characters" aria-label="Vote code">
         <button type="submit" class="btn btn-primary">Add</button>
       </form>
@@ -615,36 +639,36 @@ app.addEventListener('click', (e) => {
 
   if (action === 'move-up') {
     const r = +btn.dataset.rank;
-    if (r > 0) { [state.ranking[r], state.ranking[r - 1]] = [state.ranking[r - 1], state.ranking[r]]; render(); }
+    if (r > 0) {
+      [state.ranking[r], state.ranking[r - 1]] = [state.ranking[r - 1], state.ranking[r]];
+      render();
+      app.querySelector(`[data-action="move-up"][data-rank="${r - 1}"]`)?.focus();
+    }
     return;
   }
 
   if (action === 'move-down') {
     const r = +btn.dataset.rank;
-    if (r < state.ranking.length - 1) { [state.ranking[r], state.ranking[r + 1]] = [state.ranking[r + 1], state.ranking[r]]; render(); }
+    if (r < state.ranking.length - 1) {
+      [state.ranking[r], state.ranking[r + 1]] = [state.ranking[r + 1], state.ranking[r]];
+      render();
+      app.querySelector(`[data-action="move-down"][data-rank="${r + 1}"]`)?.focus();
+    }
     return;
   }
 
   if (action === 'copy-code') {
-    navigator.clipboard.writeText(btn.dataset.code).then(
-      () => showToast('Vote code copied'),
-      () => showToast('Could not copy \u2014 check clipboard permissions')
-    );
+    copyToClipboard(btn.dataset.code, 'Vote code copied');
     return;
   }
 
   if (action === 'qr-vote-url') {
-    const voteURL = location.origin + location.pathname + '#vote=' + state.encodedData;
-    showQRModal(voteURL, 'Scan to vote');
+    showQRModal(getVoteURL(), 'Scan to vote');
     return;
   }
 
   if (action === 'copy-url') {
-    const urlInput = app.querySelector('.share-row input');
-    navigator.clipboard.writeText(urlInput?.value || '').then(
-      () => showToast('Link copied'),
-      () => showToast('Could not copy \u2014 check clipboard permissions')
-    );
+    copyToClipboard(getVoteURL(), 'Link copied');
     return;
   }
 
@@ -652,8 +676,9 @@ app.addEventListener('click', (e) => {
     const idx = btn.dataset.index;
     const detail = app.querySelector(`[data-detail-index="${idx}"]`);
     const toggle = app.querySelector(`[data-toggle-index="${idx}"]`);
-    if (detail) detail.classList.toggle('open');
+    const isOpen = detail?.classList.toggle('open');
     if (toggle) toggle.classList.toggle('open');
+    btn.setAttribute('aria-expanded', String(!!isOpen));
     return;
   }
 
@@ -662,6 +687,13 @@ app.addEventListener('click', (e) => {
     state.votes.splice(+btn.dataset.index, 1);
     render();
     return;
+  }
+});
+
+app.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    const el = e.target.closest('[data-action="toggle-vote"]');
+    if (el) { e.preventDefault(); el.click(); }
   }
 });
 
@@ -687,11 +719,10 @@ app.addEventListener('input', (e) => {
       input.value = normalized;
       input.setSelectionRange(pos, pos);
     }
-    const n = state.election.choices.length;
-    const w = codeWidth(n);
-    if (normalized.length === w) {
-      const num = cb32Decode(normalized);
-      input.setCustomValidity(num === null || num >= factorial(n) ? 'Invalid vote code' : '');
+    const numChoices = state.election.choices.length;
+    const width = codeWidth(numChoices);
+    if (normalized.length === width) {
+      input.setCustomValidity(isValidCode(normalized, numChoices) ? '' : 'Invalid vote code');
     } else {
       input.setCustomValidity('');
     }
@@ -712,9 +743,7 @@ app.addEventListener('submit', (e) => {
   if (!e.target.checkValidity()) { e.target.reportValidity(); return; }
 
   const code = codeInput.value;
-  const n = state.election.choices.length;
-  const num = cb32Decode(code);
-  if (num === null || num >= factorial(n)) {
+  if (!isValidCode(code, state.election.choices.length)) {
     codeInput.setCustomValidity('Invalid vote code');
     e.target.reportValidity();
     return;
@@ -744,21 +773,21 @@ function syncCreateInputs() {
 function updateCreateBtn() {
   const btn = app.querySelector('[data-action="create-ballot"]');
   if (!btn) return;
-  btn.disabled = !(state.title.trim() && state.choices.length >= 2 && state.choices.every(c => c.trim()));
+  btn.disabled = !isBallotValid();
 }
 
 async function handleCreateBallot() {
   syncCreateInputs();
   const title = state.title.trim();
   const choices = state.choices.map(c => c.trim());
-  if (!title || choices.length < 2 || choices.some(c => !c)) return;
+  if (!title || choices.length < MIN_CHOICES || choices.some(c => !c)) return;
 
   const cs = await computeChecksum(title, choices);
   const encoded = encodeElection(title, choices, cs);
 
   state.mode = 'tally';
   state.election = { v: 1, title, choices, cs };
-  state.encodedData = encoded;
+  state.encodedBallot = encoded;
   state.votes = [];
   history.replaceState(null, '', '#tally=' + encoded);
   render();
@@ -794,7 +823,7 @@ async function init() {
   if (cs !== election.cs) { state.mode = 'error'; render(); return; }
 
   state.election = election;
-  state.encodedData = encoded;
+  state.encodedBallot = encoded;
 
   if (mode === 'vote') {
     state.mode = 'vote';
