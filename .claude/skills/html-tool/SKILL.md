@@ -12,7 +12,7 @@ Every tool is a **single, self-contained HTML file** in the repo root. Zero exte
 1. Copy `assets/template.html` to `<repo-root>/{tool-name}.html`
 2. Replace `TOOL_TITLE` and `TOOL_DESCRIPTION` placeholders
 3. Build the UI and logic within the single file
-4. Test locally: `uv run python -m http.server 8000`
+4. Test locally: `uv run livereload . --port 8000 --target {tool-name}.html`
 
 ### File Naming
 - Lowercase, hyphen-separated: `day-visualizer.html`, `color-picker.html`

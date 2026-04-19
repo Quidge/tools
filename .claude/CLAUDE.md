@@ -13,8 +13,7 @@ The site is deployed via GitHub Pages at `tools.jonathandemirgian.com` from the 
 │   └── workflows/
 │       └── pages.yml       # Builds index and deploys to GitHub Pages
 ├── scripts/
-│   ├── build_index.py      # Generates index.html from root-level tool files
-│   └── serve.py            # Local static file server for repo root
+│   └── build_index.py      # Generates index.html from root-level tool files
 ├── 404.html                # GitHub Pages fallback page
 ├── CNAME                   # Custom domain mapping
 ├── *.html                  # Root-level HTML tools
@@ -28,8 +27,11 @@ The site is deployed via GitHub Pages at `tools.jonathandemirgian.com` from the 
 # Build index page
 uv run python scripts/build_index.py --output-file index.html
 
-# Serve repo locally
-uv run python scripts/serve.py --port 8000
+# Serve repo locally (with live reload)
+uv run livereload . --port 8000
+
+# Serve and watch a specific tool file
+uv run livereload . --port 8000 --target <tool-name>.html
 ```
 
 Local site URL: `http://localhost:8000`
