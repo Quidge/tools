@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Stateless ranked-choice Borda count voting for small groups.">
+  <title>Borda — ranked-choice voting</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f8f9fa;
+      color: #202124;
+      line-height: 1.5;
+    }
+
+    #app {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 4px;
+    }
+
+    h2 {
+      font-size: 1.15rem;
+      margin: 20px 0 10px;
+    }
+
+    p.description {
+      color: #5f6368;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+
+    .mode-badge {
+      display: inline-block;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #5f6368;
+      background: #e8eaed;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: #5f6368;
+      margin: 12px 0 4px;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      font-size: 16px; /* 16px avoids iOS zoom-on-focus */
+      font-family: inherit;
+      background: white;
+      color: #202124;
+      transition: border-color 0.15s;
+    }
+
+    input:focus-visible,
+    textarea:focus-visible {
+      outline: 2px solid #1a73e8;
+      outline-offset: -1px;
+      border-color: #1a73e8;
+    }
+
+    textarea {
+      min-height: 140px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 13px;
+    }
+
+    button {
+      padding: 10px 16px;
+      border: 1px solid #dadce0;
+      background: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-family: inherit;
+      color: #202124;
+      transition: background 0.1s;
+    }
+
+    button:hover:not(:disabled) { background: #f1f3f4; }
+    button:disabled { color: #9aa0a6; cursor: not-allowed; opacity: 0.5; }
+
+    button.primary {
+      background: #1a73e8;
+      color: white;
+      border-color: #1a73e8;
+    }
+    button.primary:hover:not(:disabled) { background: #1765cc; }
+
+    .card {
+      background: white;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .choice-inputs .choice-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+    .choice-inputs .choice-row input { flex: 1; }
+    .choice-inputs .choice-row .remove-btn {
+      padding: 6px 10px;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    /* --- Share output --- */
+
+    .share-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .share-row input {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      background: #f8f9fa;
+    }
+    .share-row .copy-btn { flex-shrink: 0; }
+
+    /* --- Tabs --- */
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: #e8eaed;
+      padding: 4px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+    .tab {
+      flex: 1;
+      padding: 8px;
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      font-weight: 500;
+      cursor: pointer;
+      color: #5f6368;
+    }
+    .tab.active {
+      background: white;
+      color: #202124;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    }
+
+    /* --- Ranking rows --- */
+
+    .rank-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .rank-row {
+      display: flex;
+      align-items: stretch;
+      gap: 8px;
+      background: white;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      padding: 8px;
+    }
+    .rank-number {
+      min-width: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 16px;
+      color: #5f6368;
+    }
+    .rank-label {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      font-size: 15px;
+      word-break: break-word;
+    }
+    .rank-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .rank-btns button {
+      padding: 0;
+      width: 40px;
+      height: 28px;
+      font-size: 14px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* --- Results / ballots --- */
+
+    .result-row {
+      display: flex;
+      padding: 10px 12px;
+      border-bottom: 1px solid #e8eaed;
+      gap: 10px;
+      align-items: baseline;
+    }
+    .result-row:last-child { border-bottom: none; }
+    .result-rank {
+      min-width: 28px;
+      font-weight: 600;
+      color: #5f6368;
+    }
+    .result-label { flex: 1; font-size: 15px; word-break: break-word; }
+    .result-points {
+      color: #5f6368;
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .ballot-list {
+      font-size: 13px;
+      color: #5f6368;
+    }
+    .ballot-list li { list-style: none; padding: 4px 0; }
+    .ballot-accepted::before { content: "✓ "; color: #1e8e3e; }
+    .ballot-rejected::before { content: "✕ "; color: #d93025; }
+    .ballot-rejected { color: #5f6368; }
+    .ballot-reason { color: #d93025; }
+
+    .note {
+      color: #5f6368;
+      font-size: 13px;
+      margin-top: 6px;
+    }
+    .note.warn { color: #b06000; }
+
+    .error {
+      color: #d93025;
+      padding: 10px 12px;
+      background: #fce8e6;
+      border-radius: 6px;
+      font-size: 14px;
+      margin: 10px 0;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #323232;
+      color: white;
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      z-index: 2000;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      pointer-events: none;
+    }
+    .toast.visible { opacity: 1; }
+
+    .actions { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+    @media (max-width: 600px) {
+      #app { padding: 12px; }
+      h1 { font-size: 1.25rem; }
+      .rank-btns button { width: 44px; height: 32px; }
+      button { padding: 10px 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script>
+    // ======================================================================
+    // Borda — stateless ranked-choice voting tool
+    //
+    // URL fragment format (election payload)
+    //   #e=<base64url(JSON)>
+    //   JSON is: {"v":1,"title":..,"choices":[..],"voters":N,"cs":"<4ch>"}
+    //
+    // Checksum derivation
+    //   cs = first 4 base64url chars of SHA-256(canonicalJson) where
+    //   canonicalJson = JSON.stringify({title, choices}) with keys in that
+    //   fixed order. Choice ORDER matters (it's the voting index).
+    //
+    // Ballot string format
+    //   BORDA1.<cs>.<name_b64url>.<perm_b64url>
+    //     cs          : 4-char election checksum, must match
+    //     name_b64url : UTF-8 bytes of voter name, base64url
+    //     perm_b64url : N bytes, base64url — byte i = choice index at rank i
+    //                   (rank 0 = top pick; must be a permutation of 0..N-1)
+    // ======================================================================
+
+    // --- base64url helpers (URL-safe, no padding, UTF-8 aware) -------------
+
+    function bytesToB64url(bytes) {
+      let s = '';
+      for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+      return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    function b64urlToBytes(str) {
+      const pad = str.length % 4 === 0 ? '' : '='.repeat(4 - (str.length % 4));
+      const b64 = str.replace(/-/g, '+').replace(/_/g, '/') + pad;
+      const bin = atob(b64);
+      const out = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+      return out;
+    }
+
+    function strToB64url(str) {
+      return bytesToB64url(new TextEncoder().encode(str));
+    }
+
+    function b64urlToStr(str) {
+      return new TextDecoder().decode(b64urlToBytes(str));
+    }
+
+    // --- Checksum ----------------------------------------------------------
+
+    async function electionChecksum(title, choices) {
+      const canonical = JSON.stringify({ title, choices });
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical));
+      return bytesToB64url(new Uint8Array(buf)).slice(0, 4);
+    }
+
+    // --- Election encoding -------------------------------------------------
+
+    async function encodeElection(title, choices, voters) {
+      const cs = await electionChecksum(title, choices);
+      const payload = { v: 1, title, choices, voters, cs };
+      return { fragment: 'e=' + strToB64url(JSON.stringify(payload)), data: payload };
+    }
+
+    function decodeElection(frag) {
+      if (!frag || !frag.startsWith('e=')) return null;
+      try {
+        const payload = JSON.parse(b64urlToStr(frag.slice(2)));
+        if (payload.v !== 1) return null;
+        if (typeof payload.title !== 'string') return null;
+        if (!Array.isArray(payload.choices)) return null;
+        if (!payload.choices.every(c => typeof c === 'string')) return null;
+        if (typeof payload.voters !== 'number' || payload.voters < 1) return null;
+        if (typeof payload.cs !== 'string' || payload.cs.length !== 4) return null;
+        return payload;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // --- Ballot encoding / parsing ----------------------------------------
+
+    function encodeBallot(cs, name, permIndices) {
+      const bytes = new Uint8Array(permIndices);
+      return ['BORDA1', cs, strToB64url(name), bytesToB64url(bytes)].join('.');
+    }
+
+    // Returns { ok, name, perm, reason }
+    function parseBallot(line, election) {
+      const raw = (line || '').trim();
+      if (!raw) return { ok: false, reason: 'empty line' };
+      const parts = raw.split('.');
+      if (parts.length !== 4) return { ok: false, raw, reason: 'malformed (expected 4 dot-separated parts)' };
+      const [magic, cs, nameB64, permB64] = parts;
+      if (magic !== 'BORDA1') return { ok: false, raw, reason: 'not a BORDA1 ballot' };
+      if (cs !== election.cs) return { ok: false, raw, reason: 'checksum mismatch (ballot is for a different election)' };
+      let name, perm;
+      try {
+        name = b64urlToStr(nameB64).trim();
+      } catch (e) {
+        return { ok: false, raw, reason: 'bad name encoding' };
+      }
+      if (!name) return { ok: false, raw, reason: 'empty voter name' };
+      try {
+        perm = Array.from(b64urlToBytes(permB64));
+      } catch (e) {
+        return { ok: false, raw, reason: 'bad ranking encoding' };
+      }
+      const N = election.choices.length;
+      if (perm.length !== N) return { ok: false, raw, name, reason: `ranking has ${perm.length} entries, expected ${N}` };
+      const seen = new Set();
+      for (const i of perm) {
+        if (!Number.isInteger(i) || i < 0 || i >= N) return { ok: false, raw, name, reason: 'ranking contains out-of-range index' };
+        if (seen.has(i)) return { ok: false, raw, name, reason: 'ranking has duplicate choice' };
+        seen.add(i);
+      }
+      return { ok: true, raw, name, perm };
+    }
+
+    // --- Borda count -------------------------------------------------------
+
+    function bordaCount(ballots, choices) {
+      const N = choices.length;
+      const totals = new Array(N).fill(0);
+      for (const b of ballots) {
+        for (let rank = 0; rank < N; rank++) {
+          totals[b.perm[rank]] += (N - 1 - rank);
+        }
+      }
+      const rows = choices.map((label, idx) => ({ label, idx, points: totals[idx] }));
+      rows.sort((a, b) => b.points - a.points || a.idx - b.idx);
+      // competition ranking with tie groups
+      let rank = 0, lastPoints = null, lastRank = 0;
+      rows.forEach((r, i) => {
+        if (r.points !== lastPoints) {
+          lastRank = i + 1;
+          lastPoints = r.points;
+        }
+        r.rank = lastRank;
+      });
+      return rows;
+    }
+
+    // --- DOM helpers -------------------------------------------------------
+
+    const app = document.getElementById('app');
+
+    function el(tag, attrs = {}, ...children) {
+      const node = document.createElement(tag);
+      for (const [k, v] of Object.entries(attrs)) {
+        if (k === 'class') node.className = v;
+        else if (k === 'style') node.setAttribute('style', v);
+        else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2), v);
+        else if (v === true) node.setAttribute(k, '');
+        else if (v !== false && v != null) node.setAttribute(k, v);
+      }
+      for (const c of children.flat()) {
+        if (c == null || c === false) continue;
+        node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+      }
+      return node;
+    }
+
+    function showToast(message) {
+      let toast = document.getElementById('toast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        toast.className = 'toast';
+        document.body.appendChild(toast);
+      }
+      toast.textContent = message;
+      toast.classList.add('visible');
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => toast.classList.remove('visible'), 1800);
+    }
+
+    function copyToClipboard(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(
+          () => showToast('Copied'),
+          () => fallbackCopy(text)
+        );
+      } else {
+        fallbackCopy(text);
+      }
+    }
+
+    function fallbackCopy(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-1000px';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); showToast('Copied'); }
+      catch (e) { showToast('Copy failed'); }
+      document.body.removeChild(ta);
+    }
+
+    // --- State -------------------------------------------------------------
+
+    const state = {
+      election: null,    // decoded election payload or null
+      tab: 'vote',       // 'vote' | 'tally'
+      create: {
+        title: '',
+        choices: ['', ''],
+        voters: 5,
+      },
+      vote: {
+        name: '',
+        order: [],       // array of choice indices in rank order
+      },
+      tally: {
+        input: '',
+      },
+    };
+
+    // --- Routing -----------------------------------------------------------
+
+    function readFragment() {
+      const frag = (location.hash || '').replace(/^#/, '');
+      state.election = decodeElection(frag);
+      if (state.election) {
+        // ensure vote order is initialized
+        if (state.vote.order.length !== state.election.choices.length) {
+          state.vote.order = state.election.choices.map((_, i) => i);
+        }
+      }
+    }
+
+    window.addEventListener('hashchange', () => { readFragment(); render(); });
+
+    // --- Render: Create mode ----------------------------------------------
+
+    function renderCreate() {
+      const c = state.create;
+
+      const choiceInputs = el('div', { class: 'choice-inputs' },
+        c.choices.map((val, i) => el('div', { class: 'choice-row' },
+          el('input', {
+            type: 'text',
+            placeholder: `Choice ${i + 1}`,
+            value: val,
+            oninput: (e) => { c.choices[i] = e.target.value; updateCreateButtonState(); },
+          }),
+          c.choices.length > 2 ? el('button', {
+            class: 'remove-btn',
+            title: 'Remove',
+            onclick: () => { c.choices.splice(i, 1); render(); },
+          }, '×') : null,
+        )),
+      );
+
+      const addBtn = el('button', {
+        disabled: c.choices.length >= 12,
+        onclick: () => { c.choices.push(''); render(); },
+      }, '+ Add choice');
+
+      const shareOut = el('div', { id: 'share-out' });
+
+      return el('div', {},
+        el('div', { class: 'mode-badge' }, 'Create'),
+        el('h1', {}, 'New Borda poll'),
+        el('p', { class: 'description' },
+          'Ranked-choice voting for small groups. No accounts, no server — everything is in the URL.'),
+
+        el('div', { class: 'card' },
+          el('label', {}, 'Poll title'),
+          el('input', {
+            type: 'text',
+            placeholder: 'What are we voting on?',
+            value: c.title,
+            oninput: (e) => { c.title = e.target.value; updateCreateButtonState(); },
+          }),
+
+          el('label', {}, `Choices (${c.choices.length}/12, at least 2)`),
+          choiceInputs,
+          addBtn,
+
+          el('label', {}, 'Expected number of voters'),
+          el('input', {
+            type: 'number',
+            min: '1',
+            value: c.voters,
+            oninput: (e) => { c.voters = parseInt(e.target.value, 10) || 0; updateCreateButtonState(); },
+          }),
+
+          el('div', { class: 'actions' },
+            el('button', { id: 'create-btn', class: 'primary', onclick: onCreate }, 'Generate share link'),
+          ),
+          shareOut,
+        ),
+      );
+    }
+
+    function updateCreateButtonState() {
+      const btn = document.getElementById('create-btn');
+      if (!btn) return;
+      btn.disabled = !createFormValid();
+    }
+
+    function createFormValid() {
+      const c = state.create;
+      if (!c.title.trim()) return false;
+      const filled = c.choices.map(x => x.trim()).filter(Boolean);
+      if (filled.length < 2 || filled.length > 12) return false;
+      if (new Set(filled).size !== filled.length) return false;
+      if (!Number.isInteger(c.voters) || c.voters < 1) return false;
+      return true;
+    }
+
+    async function onCreate() {
+      const c = state.create;
+      if (!createFormValid()) return;
+      const title = c.title.trim();
+      const choices = c.choices.map(x => x.trim()).filter(Boolean);
+      const voters = c.voters;
+      const { fragment } = await encodeElection(title, choices, voters);
+      const url = location.origin + location.pathname + '#' + fragment;
+
+      const out = document.getElementById('share-out');
+      out.innerHTML = '';
+      out.appendChild(el('div', {},
+        el('label', {}, 'Share this link with voters'),
+        el('div', { class: 'share-row' },
+          el('input', { type: 'text', readonly: true, value: url, id: 'share-url',
+            onclick: (e) => e.target.select() }),
+          el('button', { class: 'copy-btn primary', onclick: () => copyToClipboard(url) }, 'Copy'),
+        ),
+        el('p', { class: 'note' },
+          'Anyone who opens the link can vote. Come back to this link (or share it again) to tally once ballots are in.'),
+        el('div', { class: 'actions' },
+          el('button', { onclick: () => { location.hash = fragment; } }, 'Open poll'),
+        ),
+      ));
+    }
+
+    // --- Render: Vote mode -------------------------------------------------
+
+    function renderVote() {
+      const e = state.election;
+      const order = state.vote.order;
+
+      const rankList = el('div', { class: 'rank-list' },
+        order.map((choiceIdx, rank) => el('div', { class: 'rank-row' },
+          el('div', { class: 'rank-number' }, `${rank + 1}`),
+          el('div', { class: 'rank-label' }, e.choices[choiceIdx]),
+          el('div', { class: 'rank-btns' },
+            el('button', {
+              disabled: rank === 0,
+              'aria-label': 'Move up',
+              title: 'Move up',
+              onclick: () => { moveRank(rank, rank - 1); },
+            }, '▲'),
+            el('button', {
+              disabled: rank === order.length - 1,
+              'aria-label': 'Move down',
+              title: 'Move down',
+              onclick: () => { moveRank(rank, rank + 1); },
+            }, '▼'),
+          ),
+        )),
+      );
+
+      return el('div', {},
+        el('label', {}, 'Your name'),
+        el('input', {
+          type: 'text',
+          placeholder: 'Required',
+          value: state.vote.name,
+          oninput: (e) => { state.vote.name = e.target.value; updateBallotOutput(); },
+        }),
+
+        el('label', {}, 'Rank the choices (1 = top pick)'),
+        rankList,
+
+        el('div', { class: 'actions' },
+          el('button', { class: 'primary', id: 'gen-ballot-btn', onclick: onGenerateBallot }, 'Generate ballot'),
+        ),
+
+        el('div', { id: 'ballot-out' }),
+      );
+    }
+
+    function moveRank(from, to) {
+      const o = state.vote.order;
+      if (to < 0 || to >= o.length) return;
+      const [x] = o.splice(from, 1);
+      o.splice(to, 0, x);
+      render();
+    }
+
+    function onGenerateBallot() {
+      const name = state.vote.name.trim();
+      if (!name) { showToast('Enter your name first'); return; }
+      const cs = state.election.cs;
+      const ballot = encodeBallot(cs, name, state.vote.order);
+
+      const out = document.getElementById('ballot-out');
+      out.innerHTML = '';
+      out.appendChild(el('div', { style: 'margin-top: 14px;' },
+        el('label', {}, 'Your ballot — send this to the organizer'),
+        el('div', { class: 'share-row' },
+          el('input', { type: 'text', readonly: true, value: ballot,
+            onclick: (e) => e.target.select() }),
+          el('button', { class: 'copy-btn primary', onclick: () => copyToClipboard(ballot) }, 'Copy'),
+        ),
+        el('p', { class: 'note' }, 'One line per voter. The organizer pastes all ballots in the Tally tab.'),
+      ));
+    }
+
+    function updateBallotOutput() {
+      const out = document.getElementById('ballot-out');
+      if (out) out.innerHTML = '';
+    }
+
+    // --- Render: Tally mode ------------------------------------------------
+
+    function renderTally() {
+      return el('div', {},
+        el('label', {}, 'Paste ballots, one per line'),
+        el('textarea', {
+          placeholder: 'BORDA1.xxxx.xxxx.xxxx\nBORDA1.xxxx.xxxx.xxxx',
+          oninput: (e) => { state.tally.input = e.target.value; renderTallyResults(); },
+        }, state.tally.input),
+        el('div', { id: 'tally-out' }),
+      );
+    }
+
+    function renderTallyResults() {
+      const out = document.getElementById('tally-out');
+      if (!out) return;
+      const e = state.election;
+      const lines = state.tally.input.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+
+      if (!lines.length) {
+        out.innerHTML = '';
+        return;
+      }
+
+      const parsed = lines.map(l => parseBallot(l, e));
+
+      // Dedupe by name: later ballots replace earlier ones
+      const byName = new Map();
+      const duplicateNames = new Set();
+      const rejected = [];
+      for (const p of parsed) {
+        if (!p.ok) { rejected.push(p); continue; }
+        if (byName.has(p.name)) duplicateNames.add(p.name);
+        byName.set(p.name, p);
+      }
+      const accepted = Array.from(byName.values());
+      const results = bordaCount(accepted, e.choices);
+
+      out.innerHTML = '';
+
+      // Progress summary
+      const M = e.voters;
+      const N = accepted.length;
+      let progressText;
+      if (N < M) progressText = `${N} of ${M} ballots received — waiting for ${M - N} more`;
+      else if (N === M) progressText = `${N} of ${M} ballots received`;
+      else progressText = `${N} of ${M} ballots received (${N - M} over expected)`;
+
+      out.appendChild(el('div', { class: 'card', style: 'margin-top: 14px;' },
+        el('h2', {}, 'Progress'),
+        el('p', { class: 'note' + (N > M ? ' warn' : '') }, progressText),
+
+        duplicateNames.size > 0
+          ? el('p', { class: 'note warn' },
+              `Duplicate ballots replaced (kept last): ${Array.from(duplicateNames).join(', ')}`)
+          : null,
+
+        el('ul', { class: 'ballot-list' },
+          accepted.map(b => el('li', { class: 'ballot-accepted' }, b.name)),
+          rejected.map(r => el('li', { class: 'ballot-rejected' },
+            r.name ? r.name + ' — ' : '',
+            el('span', { class: 'ballot-reason' }, r.reason),
+          )),
+        ),
+      ));
+
+      // Results
+      if (accepted.length > 0) {
+        out.appendChild(el('div', { class: 'card' },
+          el('h2', {}, 'Borda count result'),
+          el('div', {},
+            results.map(r => el('div', { class: 'result-row' },
+              el('div', { class: 'result-rank' }, `${r.rank}.`),
+              el('div', { class: 'result-label' }, r.label),
+              el('div', { class: 'result-points' }, `${r.points} pt${r.points === 1 ? '' : 's'}`),
+            )),
+          ),
+          el('p', { class: 'note' },
+            `Top pick = ${e.choices.length - 1} pts, next = ${e.choices.length - 2} pts, …, last = 0 pts. Ties share a rank.`),
+        ));
+      }
+    }
+
+    // --- Render: Election view (vote/tally tabs) ---------------------------
+
+    function renderElection() {
+      const e = state.election;
+
+      const tabs = el('div', { class: 'tabs' },
+        el('button', {
+          class: 'tab' + (state.tab === 'vote' ? ' active' : ''),
+          onclick: () => { state.tab = 'vote'; render(); },
+        }, 'Vote'),
+        el('button', {
+          class: 'tab' + (state.tab === 'tally' ? ' active' : ''),
+          onclick: () => { state.tab = 'tally'; render(); },
+        }, 'Tally'),
+      );
+
+      return el('div', {},
+        el('div', { class: 'mode-badge' }, state.tab === 'vote' ? 'Vote' : 'Tally'),
+        el('h1', {}, e.title),
+        el('p', { class: 'description' },
+          `${e.choices.length} choices · expecting ${e.voters} voter${e.voters === 1 ? '' : 's'}`),
+
+        el('div', { class: 'card' },
+          tabs,
+          state.tab === 'vote' ? renderVote() : renderTally(),
+        ),
+
+        el('p', { class: 'note', style: 'text-align: center;' },
+          el('a', { href: location.pathname, style: 'color: #5f6368;' }, 'Create a new poll')),
+      );
+    }
+
+    // --- Top-level render --------------------------------------------------
+
+    function render() {
+      app.innerHTML = '';
+      if (state.election) {
+        app.appendChild(renderElection());
+        if (state.tab === 'tally') renderTallyResults();
+      } else {
+        app.appendChild(renderCreate());
+        updateCreateButtonState();
+      }
+    }
+
+    // --- Init --------------------------------------------------------------
+
+    readFragment();
+    render();
+  </script>
+</body>
+</html>
