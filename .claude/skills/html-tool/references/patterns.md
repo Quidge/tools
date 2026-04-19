@@ -50,7 +50,7 @@ function render() {
 ```
 
 ### Pattern 3: Tool with CDN Libraries
-Use ES module imports or script tags from jsdelivr/cdnjs.
+Use ES module imports or script tags from jsdelivr/cdnjs. Always pin the version.
 
 ```html
 <!-- Script tag approach -->
@@ -60,6 +60,14 @@ Use ES module imports or script tags from jsdelivr/cdnjs.
 <script type="module">
   import lib from 'https://cdn.jsdelivr.net/npm/library@version/+esm';
 </script>
+```
+
+Guard against CDN load failure at runtime:
+```javascript
+if (typeof LibraryGlobal === 'undefined') {
+  showToast('Library not loaded — check your connection');
+  return;
+}
 ```
 
 ---
