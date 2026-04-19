@@ -196,6 +196,58 @@ Dropzone CSS:
 }
 ```
 
+### Modal Dialog
+Use the native `<dialog>` element with `.showModal()`. Provides Escape dismissal, focus trapping, and backdrop for free. If your CSS has a `* { margin: 0 }` reset, add `margin: auto` to restore centering.
+
+```css
+.modal {
+  border: none; border-radius: 16px; padding: 24px;
+  max-width: 400px; width: 90%; margin: auto;
+}
+.modal::backdrop { background: rgba(0,0,0,0.5); }
+```
+
+```javascript
+function showModal(contentHTML) {
+  const dialog = document.createElement('dialog');
+  dialog.className = 'modal';
+  dialog.innerHTML = contentHTML;
+  document.body.appendChild(dialog);
+  dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
+  dialog.addEventListener('close', () => dialog.remove());
+  dialog.showModal();
+  return dialog;
+}
+```
+
+Dismisses via Escape (native), backdrop click (`e.target === dialog`), or any button calling `dialog.close()`. The `close` event handles cleanup for all paths — no leaked listeners or DOM nodes. Use the `autofocus` attribute on the primary action or close button inside the dialog.
+
+### Modal Dialog
+Use the native `<dialog>` element with `.showModal()`. Provides Escape dismissal, focus trapping, and backdrop for free. If your CSS has a `* { margin: 0 }` reset, add `margin: auto` to restore centering.
+
+```css
+.modal {
+  border: none; border-radius: 16px; padding: 24px;
+  max-width: 400px; width: 90%; margin: auto;
+}
+.modal::backdrop { background: rgba(0,0,0,0.5); }
+```
+
+```javascript
+function showModal(contentHTML) {
+  const dialog = document.createElement('dialog');
+  dialog.className = 'modal';
+  dialog.innerHTML = contentHTML;
+  document.body.appendChild(dialog);
+  dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
+  dialog.addEventListener('close', () => dialog.remove());
+  dialog.showModal();
+  return dialog;
+}
+```
+
+Dismisses via Escape (native), backdrop click (`e.target === dialog`), or any button calling `dialog.close()`. The `close` event handles cleanup for all paths — no leaked listeners or DOM nodes. Use the `autofocus` attribute on the primary action or close button inside the dialog.
+
 ### Show/Hide Sections
 Toggle visibility with a CSS class:
 ```css

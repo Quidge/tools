@@ -164,15 +164,11 @@ input[type="text"]:focus-visible { outline: 2px solid #1a73e8; outline-offset: -
 
 .empty-state { color: #9aa0a6; text-align: center; padding: 16px; }
 
-.qr-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 1000;
-}
 .qr-modal {
-  background: white; border-radius: 16px; padding: 24px;
-  text-align: center; position: relative; max-width: 320px; width: 90%;
+  border: none; border-radius: 16px; padding: 24px;
+  text-align: center; max-width: 320px; width: 90%; margin: auto;
 }
+.qr-modal::backdrop { background: rgba(0,0,0,0.5); }
 .qr-modal h3 { margin: 0 0 16px; font-size: 1rem; color: #5f6368; }
 .qr-close {
   position: absolute; top: 8px; right: 12px; border: none; background: none;
@@ -238,22 +234,20 @@ function escapeAttr(str) {
 
 function showQRModal(text, title) {
   if (typeof QRCode === 'undefined') { showToast('QR library not loaded \u2014 check your connection'); return; }
-  const overlay = document.createElement('div');
-  overlay.className = 'qr-overlay';
-  overlay.innerHTML = `<div class="qr-modal">
-    <button class="qr-close" aria-label="Close">\u00d7</button>
+  const dialog = document.createElement('dialog');
+  dialog.className = 'qr-modal';
+  dialog.innerHTML = `
+    <button class="qr-close" autofocus aria-label="Close">\u00d7</button>
     <h3>${escapeHTML(title)}</h3>
-    <div class="qr-target"></div>
-  </div>`;
-  document.body.appendChild(overlay);
-  new QRCode(overlay.querySelector('.qr-target'), {
+    <div class="qr-target"></div>`;
+  document.body.appendChild(dialog);
+  new QRCode(dialog.querySelector('.qr-target'), {
     text, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M
   });
-  overlay.addEventListener('click', e => {
-    if (e.target === overlay || e.target.closest('.qr-close')) overlay.remove();
-  });
-  const onKey = e => { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', onKey); } };
-  document.addEventListener('keydown', onKey);
+  dialog.querySelector('.qr-close').addEventListener('click', () => dialog.close());
+  dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
+  dialog.addEventListener('close', () => dialog.remove());
+  dialog.showModal();
 }
 
 function showToast(message) {
