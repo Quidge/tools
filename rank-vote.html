@@ -580,7 +580,8 @@ function renderTally() {
         <input type="text" name="name" placeholder="Name" required aria-label="Voter name">
         <input type="text" name="code" placeholder="Code" required class="code-input"
           minlength="${width}" maxlength="${width}" pattern="${pattern}"
-          autocapitalize="characters" aria-label="Vote code">
+          autocapitalize="characters" autocorrect="off" spellcheck="false"
+          autocomplete="off" aria-label="Vote code">
         <button type="submit" class="btn btn-primary">Add</button>
       </form>
       ${voteList || '<p class="empty-state">No votes entered yet</p>'}
