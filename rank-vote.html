@@ -318,6 +318,10 @@ function codeWidth(n) {
   return w;
 }
 
+// Vote codes are zero-padded to the MAX_CHOICES width so short codes (e.g. "4")
+// display as "0004" — less likely to be mistaken for a rank number.
+const CODE_WIDTH = codeWidth(MAX_CHOICES);
+
 // --- Lehmer code ---
 // Vote codes encode a ranking permutation as an integer via the factorial number system.
 // permutation[rank] = choice index. Lehmer code converts this to a unique integer in [0, N!).
@@ -498,7 +502,7 @@ function renderCreate() {
 function renderVote() {
   const { title, choices } = state.election;
   const numChoices = choices.length;
-  const code = cb32Encode(permToInt(state.ranking), codeWidth(numChoices));
+  const code = cb32Encode(permToInt(state.ranking), CODE_WIDTH);
   let rows = '';
   for (let r = 0; r < numChoices; r++) {
     const choiceIdx = state.ranking[r];
@@ -525,9 +529,8 @@ function renderVote() {
 function renderTally() {
   const { title, choices } = state.election;
   const numChoices = choices.length;
-  const width = codeWidth(numChoices);
   const voteURL = getVoteURL();
-  const pattern = `[${CB32_CHAR_CLASS}]{${width}}`;
+  const pattern = `[${CB32_CHAR_CLASS}]{${CODE_WIDTH}}`;
   const { results, valid } = tallyResults(choices, state.votes);
 
   let voteList = '';
@@ -579,7 +582,7 @@ function renderTally() {
       <form class="vote-form" id="vote-form">
         <input type="text" name="name" placeholder="Name" required aria-label="Voter name">
         <input type="text" name="code" placeholder="Code" required class="code-input"
-          minlength="${width}" maxlength="${width}" pattern="${pattern}"
+          minlength="${CODE_WIDTH}" maxlength="${CODE_WIDTH}" pattern="${pattern}"
           autocapitalize="characters" autocorrect="off" spellcheck="false"
           autocomplete="off" aria-label="Vote code">
         <button type="submit" class="btn btn-primary">Add</button>
@@ -716,8 +719,7 @@ app.addEventListener('input', (e) => {
       input.setSelectionRange(pos, pos);
     }
     const numChoices = state.election.choices.length;
-    const width = codeWidth(numChoices);
-    if (normalized.length === width) {
+    if (normalized.length === CODE_WIDTH) {
       input.setCustomValidity(isValidCode(normalized, numChoices) ? '' : 'Invalid vote code');
     } else {
       input.setCustomValidity('');
