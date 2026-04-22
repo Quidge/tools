@@ -228,8 +228,6 @@
             <label>Rank (0 .. N!−1)</label>
             <input type="number" id="int-input" min="0" step="1">
             <input type="range" class="range" id="int-range" min="0" step="1">
-            <label>Crockford Base32 code</label>
-            <input type="text" id="b32-input" autocomplete="off" spellcheck="false">
             <div class="readout" id="int-readout"></div>
           </div>
         </div>
@@ -262,46 +260,15 @@
         <li><strong>Ranking / unranking permutations</strong> — the general name for the bijection <code>rank: S_N → [0, N!)</code> and its inverse.</li>
         <li>Cantor's expansion is another name you'll see for this formula in competitive programming.</li>
       </ul>
-      <p>This is the scheme the <a href="rank-vote.html">Rank Vote</a> tool uses to turn a ranked-choice ballot into a short shareable code.</p>
+      <p>This is the scheme the <a href="rank-vote.html">Rank Vote</a> tool uses to turn a ranked-choice ballot into a compact integer rank.</p>
     </section>
   </div>
 
   <script>
-    const CB32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
-    const CB32_VAL = {};
-    for (let i = 0; i < CB32.length; i++) CB32_VAL[CB32[i]] = i;
-    CB32_VAL['O'] = 0; CB32_VAL['I'] = 1; CB32_VAL['L'] = 1;
-
     const LABELS = ['A', 'B', 'C', 'D', 'E'];
     const COLORS = ['#fce8b2', '#a8d5ba', '#cbd5f5', '#f5c4c4', '#e0c5f3'];
 
     function factorial(n) { let r = 1; for (let i = 2; i <= n; i++) r *= i; return r; }
-
-    function codeWidth(n) {
-      const max = factorial(n) - 1;
-      if (max <= 0) return 1;
-      let w = 1, pow = 32;
-      while (pow <= max) { pow *= 32; w++; }
-      return w;
-    }
-
-    function cb32Encode(num, width) {
-      let r = '';
-      let x = num;
-      if (x === 0) r = '0';
-      while (x > 0) { r = CB32[x % 32] + r; x = Math.floor(x / 32); }
-      while (r.length < width) r = '0' + r;
-      return r;
-    }
-
-    function cb32Decode(str) {
-      let n = 0;
-      for (const ch of str.toUpperCase()) {
-        if (!(ch in CB32_VAL)) return null;
-        n = n * 32 + CB32_VAL[ch];
-      }
-      return n;
-    }
 
     function labelFor(i) { return LABELS[i]; }
     function colorFor(i) { return COLORS[i]; }
@@ -377,13 +344,12 @@
     function render() {
       const n = state.n;
       const fact = factorial(n);
-      const width = codeWidth(n);
 
       // N buttons
       document.querySelectorAll('#n-buttons button').forEach(b => {
         b.classList.toggle('active', +b.dataset.n === n);
       });
-      document.getElementById('n-stats').textContent = `N! = ${fact} permutations · Base32 width = ${width}`;
+      document.getElementById('n-stats').textContent = `N! = ${fact} permutations`;
 
       // Permutation editor
       const permList = document.getElementById('perm-list');
@@ -402,12 +368,10 @@
       // Integer inputs
       const intInput = document.getElementById('int-input');
       const intRange = document.getElementById('int-range');
-      const b32Input = document.getElementById('b32-input');
       intInput.max = fact - 1;
       intRange.max = fact - 1;
       if (document.activeElement !== intInput) intInput.value = num;
       if (document.activeElement !== intRange) intRange.value = num;
-      if (document.activeElement !== b32Input) b32Input.value = cb32Encode(num, width);
       document.getElementById('int-readout').textContent = `rank ${num} of 0..${fact - 1}`;
 
       // Encode table
@@ -435,7 +399,6 @@
       document.getElementById('encode-summary').innerHTML = `
         <div>Lehmer code: <code>(${lehmer.join(', ')})</code></div>
         <div>Factoradic: <code>${factTerms}</code> = <code>${factValues}</code> = <strong>${num}</strong></div>
-        <div>Crockford Base32 (width ${width}): <code>${cb32Encode(num, width)}</code></div>
       `;
 
       // Decode
@@ -472,11 +435,10 @@
           <td class="num">${k}</td>
           <td>${fmtPermArray(perm)}</td>
           <td class="num">(${L.join(', ')})</td>
-          <td class="num">${cb32Encode(k, width)}</td>
         </tr>`);
       }
       document.getElementById('all-table').innerHTML = `
-        <tr><th>rank</th><th>permutation</th><th>Lehmer</th><th>Base32</th></tr>
+        <tr><th>rank</th><th>permutation</th><th>Lehmer</th></tr>
         ${rows.join('')}
       `;
 
@@ -509,11 +471,6 @@
 
     document.getElementById('int-range').addEventListener('input', (e) => {
       setPermFromInt(parseInt(e.target.value, 10));
-    });
-
-    document.getElementById('b32-input').addEventListener('input', (e) => {
-      const v = cb32Decode(e.target.value.trim());
-      if (v !== null && v >= 0 && v < factorial(state.n)) setPermFromInt(v);
     });
 
     document.getElementById('all-table').addEventListener('click', (e) => {
