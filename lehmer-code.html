@@ -256,7 +256,8 @@
       <h2>What is this thing called?</h2>
       <ul>
         <li><strong>Lehmer code</strong> — the representation of a permutation as a sequence <code>(L₀, L₁, …, L_{N−1})</code>, where <code>Lᵢ</code> is the count of remaining unused items that sit before <code>perm[i]</code> in the ordered list.</li>
-        <li><strong>Factorial number system (factoradic)</strong> — a mixed-radix positional number system with place values <code>(N−1)!, (N−2)!, …, 1!, 0!</code>. Reading a Lehmer code as a factoradic number gives its integer rank.</li>
+        <li><strong>Radix</strong> — the base of a positional number system: how many distinct digit values each position can hold. Decimal is radix 10, binary is radix 2. In a <em>mixed-radix</em> system each position has its own radix instead of sharing one.</li>
+        <li><strong>Factorial number system (factoradic)</strong> — a mixed-radix positional number system where position <code>i</code> (counting from the right) has radix <code>i + 1</code>, so place values are <code>0!, 1!, 2!, …</code>. Reading a Lehmer code as a factoradic number gives its integer rank.</li>
         <li><strong>Ranking / unranking permutations</strong> — the general name for the bijection <code>rank: S_N → [0, N!)</code> and its inverse.</li>
         <li>Cantor's expansion is another name you'll see for this formula in competitive programming.</li>
       </ul>
