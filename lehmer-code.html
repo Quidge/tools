@@ -480,9 +480,15 @@
         ${rows.join('')}
       `;
 
-      // Scroll highlighted row into view
+      // Scroll highlighted row into view within its own container (never the window)
       const hl = document.querySelector('#all-table tr.highlight');
-      if (hl) hl.scrollIntoView({ block: 'nearest' });
+      if (hl) {
+        const wrap = hl.closest('.all-wrap');
+        const er = hl.getBoundingClientRect();
+        const cr = wrap.getBoundingClientRect();
+        if (er.top < cr.top) wrap.scrollTop -= cr.top - er.top;
+        else if (er.bottom > cr.bottom) wrap.scrollTop += er.bottom - cr.bottom;
+      }
     }
 
     // --- Events ---
