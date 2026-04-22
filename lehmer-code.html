@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Interactive explainer for Lehmer codes, the factorial number system, and the rank/unrank bijection between permutations and integers.">
+  <title>Lehmer Code Explorer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f8f9fa;
+      color: #202124;
+      line-height: 1.5;
+    }
+
+    #app {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    h1 { font-size: 1.5rem; margin-bottom: 8px; }
+    h2 { font-size: 1rem; margin: 0 0 10px 0; color: #202124; }
+    p.description { color: #5f6368; font-size: 14px; margin-bottom: 20px; }
+
+    section {
+      background: white;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    /* --- N selector --- */
+    .n-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .n-row .label { font-size: 14px; color: #5f6368; }
+    .n-buttons { display: flex; gap: 4px; }
+    .n-buttons button {
+      padding: 6px 14px;
+      border: 1px solid #dadce0;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-family: inherit;
+      color: #202124;
+      transition: background 0.1s;
+    }
+    .n-buttons button:hover { background: #f1f3f4; }
+    .n-buttons button.active {
+      background: #1a73e8;
+      border-color: #1a73e8;
+      color: white;
+    }
+
+    /* --- Main two-column panel --- */
+    .main-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .main-panel > div {
+      background: #f8f9fa;
+      border-radius: 6px;
+      padding: 12px;
+    }
+
+    /* --- Permutation editor --- */
+    .perm-list { display: flex; flex-direction: column; gap: 6px; }
+    .perm-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: white;
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid #dadce0;
+    }
+    .rank-num {
+      font-size: 12px;
+      color: #5f6368;
+      min-width: 20px;
+      font-variant-numeric: tabular-nums;
+    }
+    .item-pill {
+      flex: 1;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 14px;
+      color: #202124;
+    }
+    .arrow-btn {
+      width: 26px; height: 26px;
+      padding: 0;
+      border: 1px solid #dadce0;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      color: #5f6368;
+    }
+    .arrow-btn:hover:not(:disabled) { background: #f1f3f4; }
+    .arrow-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* --- Integer editor --- */
+    .int-editor { display: flex; flex-direction: column; gap: 8px; }
+    .int-editor label { font-size: 12px; color: #5f6368; }
+    .int-editor input[type="number"],
+    .int-editor input[type="text"] {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      background: white;
+    }
+    .int-editor input:focus-visible {
+      outline: 2px solid #1a73e8;
+      outline-offset: -1px;
+    }
+    .int-editor .range { width: 100%; }
+    .int-editor code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 14px;
+    }
+    .readout {
+      font-size: 12px;
+      color: #5f6368;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* --- Tables --- */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    th, td {
+      padding: 6px 8px;
+      text-align: left;
+      border-bottom: 1px solid #ecedef;
+      vertical-align: top;
+    }
+    th {
+      font-weight: 600;
+      color: #5f6368;
+      background: #f8f9fa;
+      font-family: system-ui, sans-serif;
+      font-size: 12px;
+    }
+    td.num { font-variant-numeric: tabular-nums; }
+
+    .summary {
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: #e8f0fe;
+      border-radius: 6px;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+    .summary code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: white;
+      padding: 1px 6px;
+      border-radius: 3px;
+    }
+
+    /* --- All permutations --- */
+    .all-wrap { max-height: 340px; overflow: auto; border: 1px solid #ecedef; border-radius: 6px; }
+    .all-wrap table th { position: sticky; top: 0; z-index: 1; }
+    .all-wrap tr { cursor: pointer; }
+    .all-wrap tr:hover td { background: #f8f9fa; }
+    .all-wrap tr.highlight td { background: #fff0c2; }
+
+    /* --- About --- */
+    .about p { font-size: 14px; color: #3c4043; margin-bottom: 10px; }
+    .about ul { padding-left: 20px; font-size: 14px; color: #3c4043; }
+    .about li { margin-bottom: 6px; }
+    .about a { color: #1a73e8; }
+
+    @media (max-width: 700px) {
+      #app { padding: 12px; }
+      h1 { font-size: 1.25rem; }
+      .main-panel { grid-template-columns: 1fr; }
+      table { font-size: 12px; }
+      th, td { padding: 5px 6px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>Lehmer Code Explorer</h1>
+    <p class="description">
+      An interactive explainer for how a permutation of N items maps to a unique integer in
+      <code>[0, N!)</code> — and back — via the <strong>Lehmer code</strong> and the
+      <strong>factorial number system</strong>. Change either side and watch the encoding trace update.
+    </p>
+
+    <section>
+      <div class="n-row">
+        <span class="label">Number of items (N):</span>
+        <div class="n-buttons" id="n-buttons">
+          <button data-n="2">2</button>
+          <button data-n="3">3</button>
+          <button data-n="4">4</button>
+          <button data-n="5">5</button>
+        </div>
+        <span class="label" id="n-stats"></span>
+      </div>
+    </section>
+
+    <section>
+      <div class="main-panel">
+        <div>
+          <h2>Permutation</h2>
+          <div class="perm-list" id="perm-list"></div>
+        </div>
+        <div>
+          <h2>Integer</h2>
+          <div class="int-editor">
+            <label>Rank (0 .. N!−1)</label>
+            <input type="number" id="int-input" min="0" step="1">
+            <input type="range" class="range" id="int-range" min="0" step="1">
+            <label>Crockford Base32 code</label>
+            <input type="text" id="b32-input" autocomplete="off" spellcheck="false">
+            <div class="readout" id="int-readout"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Encode trace — permutation → integer (<code>permToInt</code>)</h2>
+      <table id="encode-table"></table>
+      <div class="summary" id="encode-summary"></div>
+    </section>
+
+    <section>
+      <h2>Decode trace — integer → permutation (<code>intToPerm</code>)</h2>
+      <table id="decode-table"></table>
+    </section>
+
+    <section>
+      <h2>All N! permutations <span class="readout" id="all-count"></span></h2>
+      <div class="all-wrap">
+        <table id="all-table"></table>
+      </div>
+    </section>
+
+    <section class="about">
+      <h2>What is this thing called?</h2>
+      <ul>
+        <li><strong>Lehmer code</strong> — the representation of a permutation as a sequence <code>(L₀, L₁, …, L_{N−1})</code>, where <code>Lᵢ</code> is the count of remaining unused items that sit before <code>perm[i]</code> in the ordered list.</li>
+        <li><strong>Factorial number system (factoradic)</strong> — a mixed-radix positional number system with place values <code>(N−1)!, (N−2)!, …, 1!, 0!</code>. Reading a Lehmer code as a factoradic number gives its integer rank.</li>
+        <li><strong>Ranking / unranking permutations</strong> — the general name for the bijection <code>rank: S_N → [0, N!)</code> and its inverse.</li>
+        <li>Cantor's expansion is another name you'll see for this formula in competitive programming.</li>
+      </ul>
+      <p>This is the scheme the <a href="rank-vote.html">Rank Vote</a> tool uses to turn a ranked-choice ballot into a short shareable code.</p>
+    </section>
+  </div>
+
+  <script>
+    const CB32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+    const CB32_VAL = {};
+    for (let i = 0; i < CB32.length; i++) CB32_VAL[CB32[i]] = i;
+    CB32_VAL['O'] = 0; CB32_VAL['I'] = 1; CB32_VAL['L'] = 1;
+
+    const LABELS = ['A', 'B', 'C', 'D', 'E'];
+    const COLORS = ['#fce8b2', '#a8d5ba', '#cbd5f5', '#f5c4c4', '#e0c5f3'];
+
+    function factorial(n) { let r = 1; for (let i = 2; i <= n; i++) r *= i; return r; }
+
+    function codeWidth(n) {
+      const max = factorial(n) - 1;
+      if (max <= 0) return 1;
+      let w = 1, pow = 32;
+      while (pow <= max) { pow *= 32; w++; }
+      return w;
+    }
+
+    function cb32Encode(num, width) {
+      let r = '';
+      let x = num;
+      if (x === 0) r = '0';
+      while (x > 0) { r = CB32[x % 32] + r; x = Math.floor(x / 32); }
+      while (r.length < width) r = '0' + r;
+      return r;
+    }
+
+    function cb32Decode(str) {
+      let n = 0;
+      for (const ch of str.toUpperCase()) {
+        if (!(ch in CB32_VAL)) return null;
+        n = n * 32 + CB32_VAL[ch];
+      }
+      return n;
+    }
+
+    function labelFor(i) { return LABELS[i]; }
+    function colorFor(i) { return COLORS[i]; }
+    function fmtAvail(arr) {
+      return '[' + arr.map(i => `<span style="background:${colorFor(i)};padding:0 4px;border-radius:3px">${labelFor(i)}</span>`).join(', ') + ']';
+    }
+    function fmtPermArray(arr) {
+      return '[' + arr.map(i => `<span style="background:${colorFor(i)};padding:0 4px;border-radius:3px">${labelFor(i)}</span>`).join(', ') + ']';
+    }
+
+    function permToIntSteps(perm) {
+      const n = perm.length;
+      const avail = [...Array(n).keys()];
+      const steps = [];
+      let num = 0;
+      for (let i = 0; i < n; i++) {
+        const availBefore = [...avail];
+        const idx = avail.indexOf(perm[i]);
+        const numBefore = num;
+        const multiplier = n - i;
+        num = num * multiplier + idx;
+        steps.push({ i, availBefore, pick: perm[i], idx, numBefore, multiplier, numAfter: num });
+        avail.splice(idx, 1);
+      }
+      return { steps, num };
+    }
+
+    function intToPermSteps(num, n) {
+      const avail = [...Array(n).keys()];
+      const perm = [];
+      const steps = [];
+      let remaining = num;
+      for (let i = n - 1; i >= 0; i--) {
+        const f = factorial(i);
+        const digit = Math.floor(remaining / f);
+        const remBefore = remaining;
+        remaining = remaining % f;
+        const availBefore = [...avail];
+        const pick = avail[digit];
+        steps.push({ i, f, remBefore, digit, remAfter: remaining, availBefore, pick });
+        perm.push(pick);
+        avail.splice(digit, 1);
+      }
+      return { steps, perm };
+    }
+
+    // --- State ---
+    const state = { n: 4, perm: [0, 1, 2, 3] };
+
+    function setN(n) {
+      state.n = n;
+      state.perm = [...Array(n).keys()];
+      render();
+    }
+
+    function setPermFromInt(num) {
+      const max = factorial(state.n) - 1;
+      if (num < 0 || num > max) return;
+      state.perm = intToPermSteps(num, state.n).perm;
+      render();
+    }
+
+    function movePerm(from, dir) {
+      const to = from + dir;
+      if (to < 0 || to >= state.n) return;
+      const p = [...state.perm];
+      [p[from], p[to]] = [p[to], p[from]];
+      state.perm = p;
+      render();
+    }
+
+    // --- Render ---
+    function render() {
+      const n = state.n;
+      const fact = factorial(n);
+      const width = codeWidth(n);
+
+      // N buttons
+      document.querySelectorAll('#n-buttons button').forEach(b => {
+        b.classList.toggle('active', +b.dataset.n === n);
+      });
+      document.getElementById('n-stats').textContent = `N! = ${fact} permutations · Base32 width = ${width}`;
+
+      // Permutation editor
+      const permList = document.getElementById('perm-list');
+      permList.innerHTML = state.perm.map((idx, r) => `
+        <div class="perm-row">
+          <span class="rank-num">${r}:</span>
+          <span class="item-pill" style="background:${colorFor(idx)}">${labelFor(idx)}</span>
+          <button class="arrow-btn" data-move="${r}" data-dir="-1" ${r === 0 ? 'disabled' : ''} aria-label="Move up">↑</button>
+          <button class="arrow-btn" data-move="${r}" data-dir="1" ${r === n - 1 ? 'disabled' : ''} aria-label="Move down">↓</button>
+        </div>
+      `).join('');
+
+      // Encode
+      const { steps: encSteps, num } = permToIntSteps(state.perm);
+
+      // Integer inputs
+      const intInput = document.getElementById('int-input');
+      const intRange = document.getElementById('int-range');
+      const b32Input = document.getElementById('b32-input');
+      intInput.max = fact - 1;
+      intRange.max = fact - 1;
+      if (document.activeElement !== intInput) intInput.value = num;
+      if (document.activeElement !== intRange) intRange.value = num;
+      if (document.activeElement !== b32Input) b32Input.value = cb32Encode(num, width);
+      document.getElementById('int-readout').textContent = `rank ${num} of 0..${fact - 1}`;
+
+      // Encode table
+      document.getElementById('encode-table').innerHTML = `
+        <tr>
+          <th>step i</th>
+          <th>avail (before)</th>
+          <th>pick perm[i]</th>
+          <th>Lᵢ = index in avail</th>
+          <th>num ← num·(N−i) + Lᵢ</th>
+        </tr>
+        ${encSteps.map(s => `<tr>
+          <td class="num">${s.i}</td>
+          <td>${fmtAvail(s.availBefore)}</td>
+          <td><span style="background:${colorFor(s.pick)};padding:0 6px;border-radius:3px;font-weight:600">${labelFor(s.pick)}</span></td>
+          <td class="num">${s.idx}</td>
+          <td class="num">${s.numBefore} · ${s.multiplier} + ${s.idx} = <strong>${s.numAfter}</strong></td>
+        </tr>`).join('')}
+      `;
+
+      // Summary
+      const lehmer = encSteps.map(s => s.idx);
+      const factTerms = lehmer.map((L, i) => `${L}·${n - 1 - i}!`).join(' + ');
+      const factValues = lehmer.map((L, i) => `${L * factorial(n - 1 - i)}`).join(' + ');
+      document.getElementById('encode-summary').innerHTML = `
+        <div>Lehmer code: <code>(${lehmer.join(', ')})</code></div>
+        <div>Factoradic: <code>${factTerms}</code> = <code>${factValues}</code> = <strong>${num}</strong></div>
+        <div>Crockford Base32 (width ${width}): <code>${cb32Encode(num, width)}</code></div>
+      `;
+
+      // Decode
+      const { steps: decSteps } = intToPermSteps(num, n);
+      document.getElementById('decode-table').innerHTML = `
+        <tr>
+          <th>i</th>
+          <th>f = i!</th>
+          <th>remaining</th>
+          <th>digit = ⌊rem / f⌋</th>
+          <th>avail (before)</th>
+          <th>pick = avail[digit]</th>
+          <th>remaining ← rem mod f</th>
+        </tr>
+        ${decSteps.map(s => `<tr>
+          <td class="num">${s.i}</td>
+          <td class="num">${s.f}</td>
+          <td class="num">${s.remBefore}</td>
+          <td class="num">⌊${s.remBefore} / ${s.f}⌋ = ${s.digit}</td>
+          <td>${fmtAvail(s.availBefore)}</td>
+          <td><span style="background:${colorFor(s.pick)};padding:0 6px;border-radius:3px;font-weight:600">${labelFor(s.pick)}</span></td>
+          <td class="num">${s.remAfter}</td>
+        </tr>`).join('')}
+      `;
+
+      // All permutations table
+      document.getElementById('all-count').textContent = `(${fact} rows)`;
+      const rows = [];
+      for (let k = 0; k < fact; k++) {
+        const { perm } = intToPermSteps(k, n);
+        const { steps } = permToIntSteps(perm);
+        const L = steps.map(s => s.idx);
+        rows.push(`<tr class="${k === num ? 'highlight' : ''}" data-int="${k}">
+          <td class="num">${k}</td>
+          <td>${fmtPermArray(perm)}</td>
+          <td class="num">(${L.join(', ')})</td>
+          <td class="num">${cb32Encode(k, width)}</td>
+        </tr>`);
+      }
+      document.getElementById('all-table').innerHTML = `
+        <tr><th>rank</th><th>permutation</th><th>Lehmer</th><th>Base32</th></tr>
+        ${rows.join('')}
+      `;
+
+      // Scroll highlighted row into view
+      const hl = document.querySelector('#all-table tr.highlight');
+      if (hl) hl.scrollIntoView({ block: 'nearest' });
+    }
+
+    // --- Events ---
+    document.getElementById('n-buttons').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-n]');
+      if (btn) setN(+btn.dataset.n);
+    });
+
+    document.getElementById('perm-list').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-move]');
+      if (btn) movePerm(+btn.dataset.move, +btn.dataset.dir);
+    });
+
+    document.getElementById('int-input').addEventListener('input', (e) => {
+      const v = parseInt(e.target.value, 10);
+      if (Number.isInteger(v)) setPermFromInt(v);
+    });
+
+    document.getElementById('int-range').addEventListener('input', (e) => {
+      setPermFromInt(parseInt(e.target.value, 10));
+    });
+
+    document.getElementById('b32-input').addEventListener('input', (e) => {
+      const v = cb32Decode(e.target.value.trim());
+      if (v !== null && v >= 0 && v < factorial(state.n)) setPermFromInt(v);
+    });
+
+    document.getElementById('all-table').addEventListener('click', (e) => {
+      const tr = e.target.closest('tr[data-int]');
+      if (tr) setPermFromInt(+tr.dataset.int);
+    });
+
+    render();
+  </script>
+</body>
+</html>
