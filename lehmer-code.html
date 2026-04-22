@@ -134,12 +134,14 @@
     }
 
     /* --- Tables --- */
+    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     table {
       width: 100%;
       border-collapse: collapse;
       font-size: 13px;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     }
+    .trace-table { min-width: 560px; }
     th, td {
       padding: 6px 8px;
       text-align: left;
@@ -236,13 +238,13 @@
 
     <section>
       <h2>Encode trace — permutation → integer (<code>permToInt</code>)</h2>
-      <table id="encode-table"></table>
+      <div class="table-scroll"><table id="encode-table" class="trace-table"></table></div>
       <div class="summary" id="encode-summary"></div>
     </section>
 
     <section>
       <h2>Decode trace — integer → permutation (<code>intToPerm</code>)</h2>
-      <table id="decode-table"></table>
+      <div class="table-scroll"><table id="decode-table" class="trace-table"></table></div>
     </section>
 
     <section>
