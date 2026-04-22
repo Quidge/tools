@@ -366,13 +366,16 @@
       // Encode
       const { steps: encSteps, num } = permToIntSteps(state.perm);
 
-      // Integer inputs
+      // Integer inputs. Only skip a self-assignment that would reset the user's
+      // cursor / slider thumb — never skip updates that reflect state changed
+      // from a different control. (On iOS taps don't move focus off these
+      // inputs, so an activeElement guard here would block legitimate updates.)
       const intInput = document.getElementById('int-input');
       const intRange = document.getElementById('int-range');
       intInput.max = fact - 1;
       intRange.max = fact - 1;
-      if (document.activeElement !== intInput) intInput.value = num;
-      if (document.activeElement !== intRange) intRange.value = num;
+      if (intInput.value !== String(num)) intInput.value = num;
+      if (+intRange.value !== num) intRange.value = num;
       document.getElementById('int-readout').textContent = `rank ${num} of 0..${fact - 1}`;
 
       // Encode table
