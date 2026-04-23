@@ -88,8 +88,9 @@ font-family: system-ui, sans-serif;
 ```
 For monospace content:
 ```css
-font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+font-family: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
 ```
+`ui-monospace` prefers the OS UI monospace face, while named fonts and `monospace` preserve fallback coverage.
 
 ### Color Palette
 | Purpose | Value |
