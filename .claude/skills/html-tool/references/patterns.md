@@ -318,6 +318,52 @@ function showModal(contentHTML) {
 
 Dismisses via Escape (native), backdrop click (`e.target === dialog`), or any button calling `dialog.close()`. The `close` event handles cleanup for all paths — no leaked listeners or DOM nodes. Use the `autofocus` attribute on the primary action or close button inside the dialog, and keep modal action buttons at the same touch-target size as the rest of the app.
 
+### Confirmation Dialog
+Use this for irreversible or high-cost actions, such as deleting saved work, clearing all votes, or wiping local data. For routine single-item removals in a list or draft the user is actively editing, prefer direct action with an undo path instead of interrupting the user with a modal.
+
+Use a native `<dialog>` with a clear title, consequence text, and explicit action labels. Put `Cancel` first, give it `autofocus`, and label the destructive action with the action itself (`Delete ballot`, not `Yes`). Skip backdrop-click dismissal by default for destructive confirms.
+
+```html
+<button type="button" id="delete-ballot-btn">Delete ballot</button>
+
+<dialog
+  id="delete-ballot-dialog"
+  class="modal"
+  aria-labelledby="delete-ballot-title"
+  aria-describedby="delete-ballot-desc">
+  <form method="dialog">
+    <h3 id="delete-ballot-title">Delete ballot?</h3>
+    <p id="delete-ballot-desc">
+      This removes the saved ballot and entered votes from this browser. This can't be undone.
+    </p>
+    <div class="modal-actions">
+      <button value="cancel" autofocus>Cancel</button>
+      <button value="delete">Delete ballot</button>
+    </div>
+  </form>
+</dialog>
+```
+
+```css
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+```
+
+```javascript
+const deleteBallotBtn = document.getElementById('delete-ballot-btn');
+const deleteBallotDialog = document.getElementById('delete-ballot-dialog');
+
+deleteBallotBtn.addEventListener('click', () => deleteBallotDialog.showModal());
+
+deleteBallotDialog.addEventListener('close', () => {
+  if (deleteBallotDialog.returnValue !== 'delete') return;
+  deleteBallot();
+});
+```
+
 ### Show/Hide Sections
 Toggle visibility with a CSS class:
 ```css
