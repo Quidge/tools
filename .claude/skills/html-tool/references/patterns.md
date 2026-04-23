@@ -382,15 +382,22 @@ document.getElementById('results').classList.add('visible');
 Encode state in query params so tools produce shareable links.
 
 ```javascript
-function toBase64(str) {
+function toBase64Url(str) {
   const bytes = new TextEncoder().encode(str);
   let binary = '';
   for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
+  return btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
 }
 
-function fromBase64(b64) {
-  const binary = atob(b64);
+function fromBase64Url(b64url) {
+  const base64 = b64url
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+  const padding = (4 - (base64.length % 4)) % 4;
+  const binary = atob(base64 + '='.repeat(padding));
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return new TextDecoder().decode(bytes);
@@ -398,7 +405,7 @@ function fromBase64(b64) {
 
 // Save to URL
 function encodeStateToURL(data) {
-  const encoded = toBase64(JSON.stringify(data));
+  const encoded = toBase64Url(JSON.stringify(data));
   const url = new URL(window.location);
   url.searchParams.set('s', encoded);
   window.history.replaceState(null, '', url);
@@ -408,7 +415,7 @@ function encodeStateToURL(data) {
 function decodeStateFromURL() {
   const encoded = new URLSearchParams(window.location.search).get('s');
   if (!encoded) return null;
-  try { return JSON.parse(fromBase64(encoded)); }
+  try { return JSON.parse(fromBase64Url(encoded)); }
   catch { return null; }
 }
 ```
