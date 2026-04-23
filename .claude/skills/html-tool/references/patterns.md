@@ -172,6 +172,8 @@ function showToast(message) {
 ```
 
 ### Error Display
+Use this for form-wide or app-wide failures, not validation on a specific input.
+
 ```javascript
 function showError(message) {
   const el = document.getElementById('error');
@@ -183,6 +185,61 @@ function hideError() {
   document.getElementById('error').classList.remove('visible');
 }
 ```
+
+### Form Field + Validation
+Use visible labels, native validation attributes, hint text, and field-specific errors.
+
+```html
+<form id="settings-form">
+  <label for="project-name">Project name</label>
+  <input
+    id="project-name"
+    name="projectName"
+    type="text"
+    required
+    minlength="3"
+    maxlength="40"
+    aria-describedby="project-name-hint project-name-error">
+  <div id="project-name-hint">3-40 characters.</div>
+  <div id="project-name-error" role="alert" hidden></div>
+
+  <button type="submit">Save</button>
+</form>
+```
+
+```javascript
+const form = document.getElementById('settings-form');
+const input = document.getElementById('project-name');
+const error = document.getElementById('project-name-error');
+
+function clearFieldError() {
+  input.removeAttribute('aria-invalid');
+  error.hidden = true;
+  error.textContent = '';
+}
+
+form.addEventListener('submit', (e) => {
+  clearFieldError();
+
+  if (!input.checkValidity()) {
+    e.preventDefault();
+    input.setAttribute('aria-invalid', 'true');
+    error.textContent = input.validationMessage;
+    error.hidden = false;
+    input.focus();
+  }
+});
+
+input.addEventListener('input', clearFieldError);
+```
+
+Use `<label for>` + `id` for every form control. Placeholder text is optional hint text, not the label. Prefer native attributes like `required`, `minlength`, `maxlength`, `pattern`, and the right `type` before custom JS. Use `setCustomValidity()` only for domain-specific rules, and style invalid fields with `:invalid` or `[aria-invalid="true"]`.
+
+For opaque codes, IDs, hashes, slugs, and vote codes, disable browser writing aids:
+```html
+<input type="text" spellcheck="false" autocorrect="off" autocomplete="off" autocapitalize="characters">
+```
+Use `autocapitalize="off"` when case matters exactly, or `autocapitalize="characters"` when you normalize to uppercase.
 
 ### Loading State
 ```javascript
