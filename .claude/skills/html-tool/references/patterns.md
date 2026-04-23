@@ -50,7 +50,7 @@ function render() {
 ```
 
 ### Pattern 3: Tool with CDN Libraries
-Use ES module imports or script tags from jsdelivr/cdnjs. Always pin the version.
+Use ES module imports or script tags from jsdelivr/cdnjs. Always pin an exact version (`@x.y.z`) instead of `@latest` or a versionless URL.
 
 Use `defer` on script tags so the CDN fetch doesn't block rendering. A deferred script downloads in parallel with HTML parsing and executes after the DOM is parsed — but **before** the inline `<script>` at end of `<body>` runs. This means the library is available by the time event handlers fire, with zero render-blocking cost.
 
@@ -58,11 +58,11 @@ Omit `defer` only if the inline script calls the library at top-level during ini
 
 ```html
 <!-- Script tag approach (defer to avoid render-blocking) -->
-<script defer src="https://cdn.jsdelivr.net/npm/library@version/dist/lib.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/library@1.2.3/dist/lib.min.js"></script>
 
 <!-- ES module approach (inherently deferred) -->
 <script type="module">
-  import lib from 'https://cdn.jsdelivr.net/npm/library@version/+esm';
+  import lib from 'https://cdn.jsdelivr.net/npm/library@1.2.3/+esm';
 </script>
 ```
 
@@ -298,12 +298,12 @@ if (match) value = decodeURIComponent(match[1]);
 
 ## External Libraries
 
-Prefer loading from CDN when vanilla JS is insufficient. Common choices:
+Prefer loading from CDN when vanilla JS is insufficient. Pin exact versions so tools stay reproducible and upgrades stay intentional.
 
 | Need | Library | CDN |
 |------|---------|-----|
-| Markdown | marked | `https://cdn.jsdelivr.net/npm/marked/marked.min.js` |
-| Syntax highlight | Prism | `https://cdn.jsdelivr.net/npm/prismjs` |
-| PDF reading | PDF.js | `https://cdn.jsdelivr.net/npm/pdfjs-dist@latest/+esm` |
-| Charts | Chart.js | `https://cdn.jsdelivr.net/npm/chart.js` |
-| Date/time | dayjs | `https://cdn.jsdelivr.net/npm/dayjs` |
+| Markdown | marked | `https://cdn.jsdelivr.net/npm/marked@18.0.2/lib/marked.umd.js` |
+| Syntax highlight | Prism | `https://cdn.jsdelivr.net/npm/prismjs@1.30.0` |
+| PDF reading | PDF.js | `https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/+esm` |
+| Charts | Chart.js | `https://cdn.jsdelivr.net/npm/chart.js@4.5.1` |
+| Date/time | dayjs | `https://cdn.jsdelivr.net/npm/dayjs@1.11.20` |
