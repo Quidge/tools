@@ -28,6 +28,8 @@ Input -> Process -> Output. Real-time event listeners, no external APIs.
 </script>
 ```
 
+When you style the input, follow the touch-target sizing guidance in `CSS Conventions -> Touch Targets`.
+
 ### Pattern 2: Interactive App with State
 Centralized state object, render function, history/undo support.
 
@@ -109,6 +111,26 @@ font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
 - Centered: `margin: 0 auto`
 - Padding: `20px` desktop, `12px` mobile
 
+### Touch Targets
+Interactive controls should be easy to tap on touch devices:
+- Aim for `44x44` CSS px targets for buttons, icon buttons, links styled as buttons, and primary form controls.
+- In dense layouts, do not shrink below `24x24` CSS px.
+- Prefer `min-height`/`min-width` plus padding over fixed heights so labels can wrap without clipping.
+
+```css
+button,
+input,
+select,
+textarea {
+  min-height: 44px;
+}
+
+button.icon-only {
+  min-width: 44px;
+  min-height: 44px;
+}
+```
+
 ### Responsive Breakpoint
 ```css
 @media (max-width: 600px) {
@@ -174,6 +196,8 @@ try {
 }
 ```
 
+Keep loading buttons at the same touch-target size while the label changes.
+
 ### File Drag & Drop
 ```javascript
 const dropzone = document.getElementById('dropzone');
@@ -234,7 +258,7 @@ function showModal(contentHTML) {
 }
 ```
 
-Dismisses via Escape (native), backdrop click (`e.target === dialog`), or any button calling `dialog.close()`. The `close` event handles cleanup for all paths — no leaked listeners or DOM nodes. Use the `autofocus` attribute on the primary action or close button inside the dialog.
+Dismisses via Escape (native), backdrop click (`e.target === dialog`), or any button calling `dialog.close()`. The `close` event handles cleanup for all paths — no leaked listeners or DOM nodes. Use the `autofocus` attribute on the primary action or close button inside the dialog, and keep modal action buttons at the same touch-target size as the rest of the app.
 
 ### Show/Hide Sections
 Toggle visibility with a CSS class:
