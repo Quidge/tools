@@ -52,11 +52,15 @@ function render() {
 ### Pattern 3: Tool with CDN Libraries
 Use ES module imports or script tags from jsdelivr/cdnjs. Always pin the version.
 
-```html
-<!-- Script tag approach -->
-<script src="https://cdn.jsdelivr.net/npm/library@version/dist/lib.min.js"></script>
+Use `defer` on script tags so the CDN fetch doesn't block rendering. A deferred script downloads in parallel with HTML parsing and executes after the DOM is parsed — but **before** the inline `<script>` at end of `<body>` runs. This means the library is available by the time event handlers fire, with zero render-blocking cost.
 
-<!-- ES module approach -->
+Omit `defer` only if the inline script calls the library at top-level during initialization (not inside event handlers). This is rare — most tools reference libraries from user-triggered callbacks.
+
+```html
+<!-- Script tag approach (defer to avoid render-blocking) -->
+<script defer src="https://cdn.jsdelivr.net/npm/library@version/dist/lib.min.js"></script>
+
+<!-- ES module approach (inherently deferred) -->
 <script type="module">
   import lib from 'https://cdn.jsdelivr.net/npm/library@version/+esm';
 </script>
