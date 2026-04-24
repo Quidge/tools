@@ -1,11 +1,15 @@
 # HTML Tool Patterns Reference
 
-Load this file when building a tool that needs UI components, architecture guidance, or CSS patterns beyond what the template provides.
+Read this file for the implementation details behind the Pattern Index in `SKILL.md`, or for deeper guidance on the shared styling defaults used across new tools.
+
+Use it to choose an architecture, apply reusable interaction patterns, persist state, extend the shared styling defaults, and load external libraries beyond the baseline defaults in `SKILL.md` and `assets/template.html`.
+
+These patterns are opt-in. `assets/template.html` provides the baseline scaffold, but it does not preload optional helper markup, CSS, or JS.
 
 ## Table of Contents
 
 - [Architecture Patterns](#architecture-patterns)
-- [CSS Conventions](#css-conventions)
+- [Shared Styling Defaults](#shared-styling-defaults)
 - [UI Component Patterns](#ui-component-patterns)
 - [Data & State Patterns](#data--state-patterns)
 - [External Libraries](#external-libraries)
@@ -14,8 +18,8 @@ Load this file when building a tool that needs UI components, architecture guida
 
 ## Architecture Patterns
 
-### Pattern 1: Simple Stateless Tool
-Input -> Process -> Output. Real-time event listeners, no external APIs.
+### Simple Stateless Tool
+Use this pattern for direct input -> process -> output tools with no shared app state and no external APIs.
 
 ```html
 <input type="text" id="input" placeholder="Paste something...">
@@ -28,10 +32,10 @@ Input -> Process -> Output. Real-time event listeners, no external APIs.
 </script>
 ```
 
-When you style the input, follow the touch-target sizing guidance in `CSS Conventions -> Touch Targets`.
+When styling the input, follow the touch-target sizing guidance in `Shared Styling Defaults -> Touch Targets`.
 
-### Pattern 2: Interactive App with State
-Centralized state object, render function, history/undo support.
+### Interactive App with State
+Use this pattern when multiple controls or views mutate shared state and the UI is rendered from that state.
 
 ```javascript
 const state = {
@@ -51,7 +55,9 @@ function render() {
 }
 ```
 
-### Pattern 3: Tool with CDN Libraries
+### Tool with CDN Libraries
+Use this pattern when vanilla JS is insufficient and the tool needs a pinned external library.
+
 Default to classic script tags from jsdelivr/cdnjs with `defer`. Always pin an exact version (`@x.y.z`) instead of `@latest` or a versionless URL.
 
 Use `defer` on script tags so the CDN fetch doesn't block rendering. A deferred script downloads in parallel with HTML parsing and executes after the DOM is parsed — but **before** the inline `<script>` at end of `<body>` runs. This means the library is available by the time event handlers fire, with zero render-blocking cost.
@@ -80,7 +86,7 @@ if (typeof LibraryGlobal === 'undefined') {
 
 ---
 
-## CSS Conventions
+## Shared Styling Defaults
 
 ### Font Stack
 ```css
@@ -93,50 +99,70 @@ font-family: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
 `ui-monospace` prefers the OS UI monospace face, while named fonts and `monospace` preserve fallback coverage.
 
 ### Color Palette
-| Purpose | Value |
-|---------|-------|
-| Background | `#f8f9fa` |
-| Surface/cards | `white` |
-| Border | `#dadce0` |
-| Text primary | `#202124` |
-| Text secondary | `#5f6368` |
-| Text muted | `#9aa0a6` |
-| Accent/link | `#1a73e8` |
-| Accent hover | `#1765cc` |
-| Error text | `#d93025` |
-| Error bg | `#fce8e6` |
-| Success | `#188038` |
+Use semantic color tokens from `assets/template.html`:
+
+- Neutral: `--bg`, `--surface`, `--hover`, `--border`, `--text-primary`, `--text-secondary`, `--text-muted`, `--toast-bg`
+- Accent: `--accent-light`, `--accent`, `--accent-hover`
+- Semantic feedback: `--error-bg`, `--error`, `--success-bg`, `--success`, `--warning-bg`, `--warning`
+
+Template defaults include hex fallbacks plus an `@supports (color: oklch(...))` layer. Keep token names stable and avoid raw color literals in new snippets unless there is a specific one-off reason.
 
 ### Layout
 - Max-width container: `800px` (default) or `600px`-`1200px` as needed
 - Centered: `margin: 0 auto`
-- Padding: `20px` desktop, `12px` mobile
+- Padding: `24px` desktop, `16px` mobile
+
+### Spacing + Typography
+Treat `assets/template.html` as canonical for exact values.
+
+The shared spacing scale is built on a 4px grid, and the type scale is anchored around a `1rem` base text size for body copy and controls.
+
+Use:
+- `--space-*` for layout and component spacing
+- `--text-*` for type size
+- `--line-heading`, `--line-ui`, and `--line-copy` for line-height
+
+Prefer shared tokens over one-off values in new UI. Keep raw values only when a snippet needs component-specific geometry that the baseline scale does not cover.
 
 ### Touch Targets
 Interactive controls should be easy to tap on touch devices:
 - Aim for `44x44` CSS px targets for buttons, icon buttons, links styled as buttons, and primary form controls.
 - In dense layouts, do not shrink below `24x24` CSS px.
 - Prefer `min-height`/`min-width` plus padding over fixed heights so labels can wrap without clipping.
+- Apply shared field styling to text-like inputs, selects, and textareas. Give specialized controls like checkboxes, radios, ranges, colors, and file inputs tool-specific treatment when needed.
 
 ```css
 button,
-input,
+input:is(
+  [type="text"],
+  [type="number"],
+  [type="email"],
+  [type="url"],
+  [type="search"],
+  [type="password"],
+  [type="tel"],
+  [type="date"],
+  [type="time"],
+  [type="datetime-local"],
+  [type="month"],
+  [type="week"]
+),
 select,
 textarea {
-  min-height: 44px;
+  min-height: var(--control-min-height);
 }
 
 button.icon-only {
-  min-width: 44px;
-  min-height: 44px;
+  min-width: var(--control-min-height);
+  min-height: var(--control-min-height);
 }
 ```
 
 ### Responsive Breakpoint
 ```css
 @media (max-width: 600px) {
-  #app { padding: 12px; }
-  h1 { font-size: 1.25rem; }
+  #app { padding: var(--page-padding-mobile); }
+  h1 { font-size: var(--text-xl); }
 }
 ```
 
@@ -144,9 +170,17 @@ button.icon-only {
 
 ## UI Component Patterns
 
+These snippets are intentionally not included in `assets/template.html` by default. Add them only when the tool needs them.
+
+These CSS snippets assume the shared tokens from `assets/template.html` already exist. Use template tokens for shared decisions; keep raw values only for component-specific geometry.
+
 ### Copy to Clipboard Button
 ```javascript
 function copyToClipboard(text) {
+  if (!navigator.clipboard) {
+    showToast('Could not copy — clipboard API unavailable');
+    return;
+  }
   navigator.clipboard.writeText(text).then(
     () => showToast('Copied to clipboard'),
     () => showToast('Could not copy — check clipboard permissions')
@@ -155,6 +189,29 @@ function copyToClipboard(text) {
 ```
 
 ### Toast Notification
+```css
+.toast {
+  position: fixed;
+  bottom: var(--space-6);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--toast-bg);
+  color: var(--surface);
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  z-index: 2000;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.toast.visible {
+  opacity: 1;
+}
+```
+
 ```javascript
 function showToast(message) {
   let toast = document.getElementById('toast');
@@ -162,6 +219,8 @@ function showToast(message) {
     toast = document.createElement('div');
     toast.id = 'toast';
     toast.className = 'toast';
+    toast.setAttribute('role', 'status');
+    toast.setAttribute('aria-live', 'polite');
     document.body.appendChild(toast);
   }
   toast.textContent = message;
@@ -174,6 +233,26 @@ function showToast(message) {
 ### Error Display
 Use this for form-wide or app-wide failures, not validation on a specific input.
 
+```html
+<div id="error" class="error" role="alert" aria-live="assertive"></div>
+```
+
+```css
+.error {
+  color: var(--error);
+  padding: var(--space-3);
+  background: var(--error-bg);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-base);
+  display: none;
+  margin-top: var(--space-3);
+}
+
+.error.visible {
+  display: block;
+}
+```
+
 ```javascript
 function showError(message) {
   const el = document.getElementById('error');
@@ -182,40 +261,59 @@ function showError(message) {
 }
 
 function hideError() {
-  document.getElementById('error').classList.remove('visible');
+  const el = document.getElementById('error');
+  el.classList.remove('visible');
+  el.textContent = '';
 }
 ```
 
 ### Form Field + Validation
 Use visible labels, native validation attributes, hint text, and field-specific errors.
 
+Use a `.field` wrapper so each control keeps its label, hint, and field-level error together. Reserve the app-wide `.error` pattern for form-wide or page-wide failures.
+
 ```html
 <form id="settings-form">
-  <label for="project-name">Project name</label>
-  <input
-    id="project-name"
-    name="projectName"
-    type="text"
-    required
-    minlength="3"
-    maxlength="40"
-    aria-describedby="project-name-hint project-name-error">
-  <div id="project-name-hint">3-40 characters.</div>
-  <div id="project-name-error" role="alert" hidden></div>
+  <div class="field">
+    <label for="project-name">Project name</label>
+    <input
+      id="project-name"
+      name="projectName"
+      type="text"
+      required
+      minlength="3"
+      maxlength="40"
+      aria-describedby="project-name-hint project-name-error">
+    <div id="project-name-hint" class="hint">3-40 characters.</div>
+    <div id="project-name-error" class="field-error" role="alert" hidden></div>
+  </div>
 
   <button type="submit">Save</button>
 </form>
 ```
 
+```css
+.field-error {
+  margin-top: var(--space-2);
+  color: var(--error);
+  font-size: var(--text-sm);
+  line-height: var(--line-copy);
+}
+
+input[aria-invalid="true"] {
+  border-color: var(--error);
+}
+```
+
 ```javascript
 const form = document.getElementById('settings-form');
 const input = document.getElementById('project-name');
-const error = document.getElementById('project-name-error');
+const fieldError = document.getElementById('project-name-error');
 
 function clearFieldError() {
   input.removeAttribute('aria-invalid');
-  error.hidden = true;
-  error.textContent = '';
+  fieldError.hidden = true;
+  fieldError.textContent = '';
 }
 
 form.addEventListener('submit', (e) => {
@@ -224,8 +322,8 @@ form.addEventListener('submit', (e) => {
   if (!input.checkValidity()) {
     e.preventDefault();
     input.setAttribute('aria-invalid', 'true');
-    error.textContent = input.validationMessage;
-    error.hidden = false;
+    fieldError.textContent = input.validationMessage;
+    fieldError.hidden = false;
     input.focus();
   }
 });
@@ -233,7 +331,7 @@ form.addEventListener('submit', (e) => {
 input.addEventListener('input', clearFieldError);
 ```
 
-Use `<label for>` + `id` for every form control. Placeholder text is optional hint text, not the label. Prefer native attributes like `required`, `minlength`, `maxlength`, `pattern`, and the right `type` before custom JS. Use `setCustomValidity()` only for domain-specific rules, and style invalid fields with `:invalid` or `[aria-invalid="true"]`.
+Use `<label for>` + `id` for every form control. Placeholder text is optional hint text, not the label. Prefer native attributes like `required`, `minlength`, `maxlength`, `pattern`, and the right `type` before custom JS. Use `setCustomValidity()` only for domain-specific rules.
 
 For opaque codes, IDs, hashes, slugs, and vote codes, disable browser writing aids:
 ```html
@@ -278,17 +376,17 @@ fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
 Dropzone CSS:
 ```css
 .dropzone {
-  border: 2px dashed #dadce0;
-  border-radius: 8px;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-md);
   padding: 40px 20px;
   text-align: center;
-  color: #5f6368;
+  color: var(--text-secondary);
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
 }
 .dropzone:hover, .dropzone.drag-over {
-  border-color: #1a73e8;
-  background: #e8f0fe;
+  border-color: var(--accent);
+  background: var(--accent-light);
 }
 ```
 
@@ -297,7 +395,7 @@ Use the native `<dialog>` element with `.showModal()`. Provides Escape dismissal
 
 ```css
 .modal {
-  border: none; border-radius: 16px; padding: 24px;
+  border: none; border-radius: 16px; padding: var(--space-6);
   max-width: 400px; width: 90%; margin: auto;
 }
 .modal::backdrop { background: rgba(0,0,0,0.5); }
@@ -347,7 +445,7 @@ Use a native `<dialog>` with a clear title, consequence text, and explicit actio
 ```css
 .modal-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   justify-content: flex-end;
 }
 ```
@@ -366,6 +464,12 @@ deleteBallotDialog.addEventListener('close', () => {
 
 ### Show/Hide Sections
 Toggle visibility with a CSS class:
+```html
+<div id="results" class="results">
+  <!-- Results go here -->
+</div>
+```
+
 ```css
 .results { display: none; }
 .results.visible { display: block; }
