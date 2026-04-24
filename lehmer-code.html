@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Interactive explainer for Lehmer codes, the factorial number system, and the rank/unrank bijection between permutations and integers.">
+  <meta name="description" content="Interactive explainer for Lehmer codes, factorial numbers, and the rank/unrank mapping between permutations and integers.">
   <title>Lehmer Code Explorer</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -15,15 +15,51 @@
       line-height: 1.5;
     }
 
+    a { color: #1a73e8; }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.95em;
+    }
+
     #app {
-      max-width: 900px;
+      max-width: 960px;
       margin: 0 auto;
       padding: 20px;
     }
 
-    h1 { font-size: 1.5rem; margin-bottom: 8px; }
-    h2 { font-size: 1rem; margin: 0 0 10px 0; color: #202124; }
-    p.description { color: #5f6368; font-size: 14px; margin-bottom: 20px; }
+    h1 {
+      font-size: 1.75rem;
+      margin-bottom: 8px;
+      line-height: 1.25;
+    }
+
+    h2 {
+      font-size: 1.1rem;
+      margin: 0 0 10px 0;
+      color: #202124;
+      line-height: 1.3;
+    }
+
+    p.description {
+      color: #5f6368;
+      font-size: 15px;
+      margin-bottom: 20px;
+      max-width: 70ch;
+    }
+
+    .section-copy {
+      font-size: 14px;
+      color: #5f6368;
+      margin-bottom: 12px;
+      max-width: 72ch;
+    }
+
+    .helper-text,
+    .small-muted {
+      font-size: 12px;
+      color: #5f6368;
+    }
 
     section {
       background: white;
@@ -33,26 +69,86 @@
       margin-bottom: 16px;
     }
 
-    /* --- N selector --- */
-    .n-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-    .n-row .label { font-size: 14px; color: #5f6368; }
-    .n-buttons { display: flex; gap: 4px; }
-    .n-buttons button {
-      padding: 6px 14px;
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .note-card {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 12px;
+      border: 1px solid #ecedef;
+    }
+
+    .note-card h3 {
+      font-size: 14px;
+      margin-bottom: 6px;
+      color: #202124;
+    }
+
+    .note-card p {
+      font-size: 13px;
+      color: #3c4043;
+    }
+
+    /* --- Controls --- */
+    .n-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .n-row .label {
+      font-size: 14px;
+      color: #5f6368;
+    }
+
+    .n-buttons,
+    .step-strip,
+    .step-nav {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .n-buttons button,
+    .secondary-btn,
+    .step-btn,
+    .nav-btn {
+      padding: 7px 12px;
       border: 1px solid #dadce0;
       background: white;
-      border-radius: 4px;
+      border-radius: 6px;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 13px;
       font-family: inherit;
       color: #202124;
-      transition: background 0.1s;
+      transition: background 0.1s, border-color 0.1s, color 0.1s;
     }
-    .n-buttons button:hover { background: #f1f3f4; }
-    .n-buttons button.active {
+
+    .n-buttons button:hover:not(:disabled),
+    .secondary-btn:hover:not(:disabled),
+    .step-btn:hover:not(:disabled),
+    .nav-btn:hover:not(:disabled) {
+      background: #f1f3f4;
+    }
+
+    .n-buttons button.active,
+    .step-btn.active {
       background: #1a73e8;
       border-color: #1a73e8;
       color: white;
+    }
+
+    .secondary-btn:disabled,
+    .step-btn:disabled,
+    .nav-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
     }
 
     /* --- Main two-column panel --- */
@@ -61,53 +157,92 @@
       grid-template-columns: 1fr 1fr;
       gap: 16px;
     }
+
     .main-panel > div {
       background: #f8f9fa;
-      border-radius: 6px;
+      border-radius: 8px;
       padding: 12px;
+      border: 1px solid #ecedef;
+    }
+
+    .panel-copy {
+      font-size: 13px;
+      color: #5f6368;
+      margin: -2px 0 10px 0;
     }
 
     /* --- Permutation editor --- */
-    .perm-list { display: flex; flex-direction: column; gap: 6px; }
+    .perm-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
     .perm-row {
       display: flex;
       align-items: center;
       gap: 8px;
       background: white;
-      padding: 6px 8px;
-      border-radius: 6px;
+      padding: 8px;
+      border-radius: 8px;
       border: 1px solid #dadce0;
     }
+
     .rank-num {
       font-size: 12px;
       color: #5f6368;
-      min-width: 20px;
+      min-width: 52px;
       font-variant-numeric: tabular-nums;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     }
+
     .item-pill {
       flex: 1;
-      padding: 4px 10px;
-      border-radius: 4px;
+      padding: 6px 10px;
+      border-radius: 999px;
       font-weight: 600;
       font-size: 14px;
       color: #202124;
+      text-align: center;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
     }
+
+    .item-index,
+    .token-index,
+    .block-index {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      color: #5f6368;
+    }
+
     .arrow-btn {
-      width: 26px; height: 26px;
+      width: 32px;
+      height: 32px;
       padding: 0;
       border: 1px solid #dadce0;
       background: white;
-      border-radius: 4px;
+      border-radius: 6px;
       cursor: pointer;
       font-size: 14px;
       color: #5f6368;
     }
+
     .arrow-btn:hover:not(:disabled) { background: #f1f3f4; }
     .arrow-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
     /* --- Integer editor --- */
     .int-editor { display: flex; flex-direction: column; gap: 8px; }
-    .int-editor label { font-size: 12px; color: #5f6368; }
+
+    .int-editor label {
+      font-size: 12px;
+      color: #5f6368;
+    }
+
     .int-editor input[type="number"],
     .int-editor input[type="text"] {
       width: 100%;
@@ -118,36 +253,188 @@
       font-family: inherit;
       background: white;
     }
+
     .int-editor input:focus-visible {
       outline: 2px solid #1a73e8;
       outline-offset: -1px;
     }
+
     .int-editor .range { width: 100%; }
-    .int-editor code {
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 14px;
-    }
+
     .readout {
       font-size: 12px;
       color: #5f6368;
       font-variant-numeric: tabular-nums;
     }
 
+    /* --- Guided panels --- */
+    .step-controls {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .focus-panel {
+      background: #f8f9fa;
+      border: 1px solid #ecedef;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+
+    .focus-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #202124;
+    }
+
+    .focus-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .focus-card {
+      background: white;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .focus-card h3 {
+      font-size: 13px;
+      margin-bottom: 6px;
+      color: #202124;
+    }
+
+    .focus-card p {
+      font-size: 13px;
+      color: #3c4043;
+      margin-bottom: 8px;
+    }
+
+    .formula {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      background: #f8f9fa;
+      border-radius: 6px;
+      padding: 8px 10px;
+      border: 1px solid #ecedef;
+    }
+
+    .mini-stack {
+      margin-top: 10px;
+    }
+
+    .snippet-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #5f6368;
+      margin-bottom: 6px;
+    }
+
+    .sub-snippet {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid #ecedef;
+    }
+
+    .token-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .token {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 34px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 13px;
+      color: #202124;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .token.is-before { box-shadow: inset 0 0 0 2px #c5221f; }
+    .token.is-current { box-shadow: inset 0 0 0 2px #1a73e8; }
+
+    .block-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .block-card {
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      padding: 10px;
+      background: white;
+    }
+
+    .block-card.active {
+      border-color: #1a73e8;
+      box-shadow: inset 0 0 0 1px #1a73e8;
+      background: #e8f0fe;
+    }
+
+    .block-item {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 28px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 13px;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      margin-bottom: 6px;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .block-range {
+      display: block;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      color: #3c4043;
+    }
+
     /* --- Tables --- */
-    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .table-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
       font-size: 13px;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     }
-    .trace-table { min-width: 560px; }
-    th, td {
-      padding: 6px 8px;
+
+    .trace-table { min-width: 620px; }
+
+    th,
+    td {
+      padding: 7px 8px;
       text-align: left;
       border-bottom: 1px solid #ecedef;
       vertical-align: top;
     }
+
     th {
       font-weight: 600;
       color: #5f6368;
@@ -155,42 +442,92 @@
       font-family: system-ui, sans-serif;
       font-size: 12px;
     }
+
     td.num { font-variant-numeric: tabular-nums; }
+
+    .trace-table tr[data-encode-row],
+    .trace-table tr[data-decode-row] {
+      cursor: pointer;
+    }
+
+    .trace-table tr[data-encode-row]:hover td,
+    .trace-table tr[data-decode-row]:hover td {
+      background: #f8f9fa;
+    }
+
+    .trace-table tr.focus-row td { background: #fff7d1; }
 
     .summary {
       margin-top: 12px;
-      padding: 10px 12px;
+      padding: 12px;
       background: #e8f0fe;
-      border-radius: 6px;
+      border-radius: 8px;
       font-size: 13px;
       line-height: 1.8;
+      color: #202124;
     }
+
     .summary code {
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       background: white;
       padding: 1px 6px;
-      border-radius: 3px;
+      border-radius: 4px;
     }
 
     /* --- All permutations --- */
-    .all-wrap { max-height: 340px; overflow: auto; border: 1px solid #ecedef; border-radius: 6px; }
-    .all-wrap table th { position: sticky; top: 0; z-index: 1; }
+    .all-wrap {
+      max-height: 340px;
+      overflow: auto;
+      border: 1px solid #ecedef;
+      border-radius: 8px;
+    }
+
+    .all-wrap table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
     .all-wrap tr { cursor: pointer; }
     .all-wrap tr:hover td { background: #f8f9fa; }
     .all-wrap tr.highlight td { background: #fff0c2; }
 
     /* --- About --- */
-    .about p { font-size: 14px; color: #3c4043; margin-bottom: 10px; }
-    .about ul { padding-left: 20px; font-size: 14px; color: #3c4043; }
+    .about p {
+      font-size: 14px;
+      color: #3c4043;
+      margin-bottom: 10px;
+      max-width: 72ch;
+    }
+
+    .about ul {
+      padding-left: 20px;
+      font-size: 14px;
+      color: #3c4043;
+      margin-bottom: 12px;
+    }
+
     .about li { margin-bottom: 6px; }
-    .about a { color: #1a73e8; }
 
     @media (max-width: 700px) {
       #app { padding: 12px; }
-      h1 { font-size: 1.25rem; }
-      .main-panel { grid-template-columns: 1fr; }
+      h1 { font-size: 1.4rem; }
+      .overview-grid,
+      .main-panel,
+      .focus-grid {
+        grid-template-columns: 1fr;
+      }
+      .step-controls {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .step-nav {
+        width: 100%;
+      }
+      .step-nav .nav-btn {
+        flex: 1;
+      }
       table { font-size: 12px; }
-      th, td { padding: 5px 6px; }
+      th, td { padding: 6px; }
     }
   </style>
 </head>
@@ -198,12 +535,41 @@
   <div id="app">
     <h1>Lehmer Code Explorer</h1>
     <p class="description">
-      An interactive explainer for how a permutation of N items maps to a unique integer in
-      <code>[0, N!)</code> — and back — via the <strong>Lehmer code</strong> and the
-      <strong>factorial number system</strong>. Change either side and watch the encoding trace update.
+      This page explains the same trick used by <a href="rank-vote.html">Rank Vote</a>:
+      take one ordering, turn it into a single integer, and recover the ordering from that integer again.
+      The walkthroughs below stay synced with the current example.
     </p>
 
     <section>
+      <h2>Start Here</h2>
+      <p class="section-copy">
+        The goal is to number every possible ordering. If there are <code>N</code> items, then there are
+        <code>N!</code> orderings, so the ranks run from <code>0</code> to <code>N!-1</code>.
+      </p>
+      <div class="overview-grid">
+        <div class="note-card">
+          <h3>Encode</h3>
+          <p>At each slot, look only at the unused items. Count how many unused items come before the current pick.</p>
+        </div>
+        <div class="note-card">
+          <h3>Why factorials appear</h3>
+          <p>If there are <code>k</code> slots left after this choice, each option here opens exactly <code>k!</code> ways to finish the rest.</p>
+        </div>
+        <div class="note-card">
+          <h3>Decode</h3>
+          <p>Work backward from the integer: divide by the current block size to choose a block, then keep the remainder for later slots.</p>
+        </div>
+      </div>
+      <p class="helper-text" style="margin-top:12px">
+        The page starts on a nontrivial example so the digits are not all zero. The names are intentionally reverse-alphabetical, and every chip shows its original index, so the remaining list cannot be mistaken for an alphabetical re-sort. We only delete used items; we never sort the leftovers.
+      </p>
+    </section>
+
+    <section>
+      <h2>1. Choose an Example</h2>
+      <p class="section-copy">
+        You can start from either side: edit the permutation directly, or type a rank and let the page decode it.
+      </p>
       <div class="n-row">
         <span class="label">Number of items (N):</span>
         <div class="n-buttons" id="n-buttons">
@@ -212,21 +578,22 @@
           <button data-n="4">4</button>
           <button data-n="5">5</button>
         </div>
+        <button class="secondary-btn" id="reset-example" type="button">Reset example</button>
         <span class="label" id="n-stats"></span>
       </div>
-    </section>
 
-    <section>
       <div class="main-panel">
         <div>
           <h2>Permutation</h2>
+          <p class="panel-copy">Use the arrows to change the current ordering.</p>
           <div class="perm-list" id="perm-list"></div>
         </div>
         <div>
-          <h2>Integer</h2>
+          <h2>Integer Rank</h2>
+          <p class="panel-copy">Or start from the number in <code>0..N!-1</code>.</p>
           <div class="int-editor">
-            <label>Rank (0 .. N!−1)</label>
-            <input type="number" id="int-input" min="0" step="1">
+            <label for="int-input">Rank</label>
+            <input type="number" id="int-input" min="0" step="1" inputmode="numeric">
             <input type="range" class="range" id="int-range" min="0" step="1">
             <div class="readout" id="int-readout"></div>
           </div>
@@ -235,49 +602,143 @@
     </section>
 
     <section>
-      <h2>Encode trace — permutation → integer (<code>permToInt</code>)</h2>
+      <h2>2. Encode: permutation -&gt; integer</h2>
+      <p class="section-copy">
+        Encoding asks the same question at every slot: among the items that are still unused, how far from the left is the current pick?
+        Those counts are the Lehmer digits.
+      </p>
+      <div id="encode-focus-panel"></div>
       <div class="table-scroll"><table id="encode-table" class="trace-table"></table></div>
       <div class="summary" id="encode-summary"></div>
     </section>
 
     <section>
-      <h2>Decode trace — integer → permutation (<code>intToPerm</code>)</h2>
+      <h2>3. Decode: integer -&gt; permutation</h2>
+      <p class="section-copy">
+        Decoding does the inverse. At each slot, split the remaining rank into equal-sized factorial blocks, choose the block,
+        then carry the remainder onward.
+      </p>
+      <div id="decode-focus-panel"></div>
       <div class="table-scroll"><table id="decode-table" class="trace-table"></table></div>
     </section>
 
     <section>
-      <h2>All N! permutations <span class="readout" id="all-count"></span></h2>
+      <h2>4. Every Ordering for This N <span class="readout" id="all-count"></span></h2>
+      <p class="section-copy">
+        Click any row to load it as the current example. The highlighted row is the permutation you are looking at now.
+      </p>
       <div class="all-wrap">
         <table id="all-table"></table>
       </div>
     </section>
 
     <section class="about">
-      <h2>What is this thing called?</h2>
+      <h2>Names You Might See Elsewhere</h2>
+      <p>
+        People use a few different names for closely related views of the same idea. They are not different algorithms so much as different angles on the same one. This demo intentionally uses reverse-alphabetical animal names plus visible original indices so the "remaining items" list cannot accidentally look alphabetically sorted.
+      </p>
       <ul>
-        <li><strong>Lehmer code</strong> — the representation of a permutation as a sequence <code>(L₀, L₁, …, L_{N−1})</code>, where <code>Lᵢ</code> is the count of remaining unused items that sit before <code>perm[i]</code> in the ordered list.</li>
-        <li><strong>Radix</strong> — the base of a positional number system: how many distinct digit values each position can hold. Decimal is radix 10, binary is radix 2. In a <em>mixed-radix</em> system each position has its own radix instead of sharing one.</li>
-        <li><strong>Factorial number system (factoradic)</strong> — a mixed-radix positional number system where position <code>i</code> (counting from the right) has radix <code>i + 1</code>, so place values are <code>0!, 1!, 2!, …</code>. Reading a Lehmer code as a factoradic number gives its integer rank.</li>
-        <li><strong>Ranking / unranking permutations</strong> — the general name for the bijection <code>rank: S_N → [0, N!)</code> and its inverse.</li>
-        <li>Cantor's expansion is another name you'll see for this formula in competitive programming.</li>
+        <li><strong>Lehmer code</strong>: the digit sequence <code>(L0, L1, ...)</code> where each digit counts how many unused items sit before the chosen one.</li>
+        <li><strong>Factorial number system</strong> or <strong>factoradic</strong>: read those digits with place values <code>(N-1)!, (N-2)!, ... , 1!, 0!</code>.</li>
+        <li><strong>Ranking / unranking permutations</strong>: the general name for mapping permutations to <code>0..N!-1</code> and back.</li>
+        <li><strong>Cantor expansion</strong>: another name you will often see for the same ranking formula.</li>
       </ul>
-      <p>This is the scheme the <a href="rank-vote.html">Rank Vote</a> tool uses to turn a ranked-choice ballot into a compact integer rank.</p>
+      <p>
+        This is exactly the scheme the <a href="rank-vote.html">Rank Vote</a> tool uses to turn a ranked-choice ballot into one deterministic number.
+      </p>
     </section>
   </div>
 
   <script>
-    const LABELS = ['A', 'B', 'C', 'D', 'E'];
+    const LABELS = ['Zebra', 'Yak', 'Pig', 'Llama', 'Ant'];
     const COLORS = ['#fce8b2', '#a8d5ba', '#cbd5f5', '#f5c4c4', '#e0c5f3'];
+    const DEFAULT_ORDER = [1, 3, 0, 4, 2];
 
-    function factorial(n) { let r = 1; for (let i = 2; i <= n; i++) r *= i; return r; }
-
-    function labelFor(i) { return LABELS[i]; }
-    function colorFor(i) { return COLORS[i]; }
-    function fmtAvail(arr) {
-      return '[' + arr.map(i => `<span style="background:${colorFor(i)};padding:0 4px;border-radius:3px">${labelFor(i)}</span>`).join(', ') + ']';
+    function factorial(n) {
+      let result = 1;
+      for (let i = 2; i <= n; i++) result *= i;
+      return result;
     }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function labelFor(i) {
+      return LABELS[i];
+    }
+
+    function colorFor(i) {
+      return COLORS[i];
+    }
+
+    function plural(count, one, many) {
+      return count === 1 ? one : many;
+    }
+
+    function defaultPermFor(n) {
+      return DEFAULT_ORDER.filter(index => index < n);
+    }
+
+    function tokenHTML(index, extraClass) {
+      return `<span class="token${extraClass ? ' ' + extraClass : ''}" style="background:${colorFor(index)}"><span class="token-index">#${index}</span><span>${labelFor(index)}</span></span>`;
+    }
+
+    function fmtTokenRow(arr, currentIdx) {
+      if (!arr.length) {
+        return '<div class="token-row"><span class="small-muted">none</span></div>';
+      }
+
+      return `<div class="token-row">${arr.map((item, idx) => {
+        let className = '';
+        if (idx === currentIdx) className = 'is-current';
+        else if (currentIdx >= 0 && idx < currentIdx) className = 'is-before';
+        return tokenHTML(item, className);
+      }).join('')}</div>`;
+    }
+
+    function fmtPlainTokens(arr) {
+      if (!arr.length) return '<span class="small-muted">none</span>';
+      return `<div class="token-row">${arr.map(item => tokenHTML(item)).join('')}</div>`;
+    }
+
     function fmtPermArray(arr) {
-      return '[' + arr.map(i => `<span style="background:${colorFor(i)};padding:0 4px;border-radius:3px">${labelFor(i)}</span>`).join(', ') + ']';
+      return `<div class="token-row">${arr.map(item => tokenHTML(item)).join('')}</div>`;
+    }
+
+    function choiceBlocksFor(avail, blockSize) {
+      return avail.map((item, blockIndex) => ({
+        item,
+        start: blockIndex * blockSize,
+        end: blockIndex * blockSize + blockSize - 1
+      }));
+    }
+
+    function blockCardsHTML(choiceBlocks, activeIndex) {
+      return `<div class="block-list">${choiceBlocks.map((block, index) => `
+        <div class="block-card${index === activeIndex ? ' active' : ''}">
+          <span class="block-item" style="background:${colorFor(block.item)}"><span class="block-index">#${block.item}</span><span>${labelFor(block.item)}</span></span>
+          <span class="block-range">${block.start}..${block.end}</span>
+        </div>
+      `).join('')}</div>`;
+    }
+
+    function digitRangesText(n) {
+      return Array.from({ length: n }, (_, position) => `L${position} in 0..${n - 1 - position}`).join(', ');
+    }
+
+    function encodeDigitExplanation(step) {
+      if (step.digit === 0) {
+        return `No unused items sit before ${labelFor(step.pick)}, so L${step.position} = 0.`;
+      }
+      return `${step.digit} unused ${plural(step.digit, 'item sits', 'items sit')} before ${labelFor(step.pick)}, so L${step.position} = ${step.digit}.`;
+    }
+
+    function skippedExplanation(step) {
+      if (step.skipped === 0) {
+        return 'This chooses the first block at this slot, so it skips 0 permutations at this level.';
+      }
+      return `Each earlier choice here would open ${step.blockSize} ${plural(step.blockSize, 'completion', 'completions')}, so this step skips ${step.skipped} permutations at this level.`;
     }
 
     function permToIntSteps(perm) {
@@ -285,15 +746,33 @@
       const avail = [...Array(n).keys()];
       const steps = [];
       let num = 0;
-      for (let i = 0; i < n; i++) {
+
+      for (let position = 0; position < n; position++) {
         const availBefore = [...avail];
-        const idx = avail.indexOf(perm[i]);
+        const pick = perm[position];
+        const digit = availBefore.indexOf(pick);
+        const radix = availBefore.length;
+        const blockSize = factorial(n - 1 - position);
         const numBefore = num;
-        const multiplier = n - i;
-        num = num * multiplier + idx;
-        steps.push({ i, availBefore, pick: perm[i], idx, numBefore, multiplier, numAfter: num });
-        avail.splice(idx, 1);
+        num = num * radix + digit;
+
+        steps.push({
+          position,
+          availBefore,
+          pick,
+          digit,
+          radix,
+          blockSize,
+          numBefore,
+          numAfter: num,
+          skipped: digit * blockSize,
+          beforeItems: availBefore.slice(0, digit),
+          choiceBlocks: choiceBlocksFor(availBefore, blockSize)
+        });
+
+        avail.splice(digit, 1);
       }
+
       return { steps, num };
     }
 
@@ -302,184 +781,401 @@
       const perm = [];
       const steps = [];
       let remaining = num;
+
       for (let i = n - 1; i >= 0; i--) {
-        const f = factorial(i);
-        const digit = Math.floor(remaining / f);
-        const remBefore = remaining;
-        remaining = remaining % f;
+        const position = n - 1 - i;
+        const blockSize = factorial(i);
         const availBefore = [...avail];
-        const pick = avail[digit];
-        steps.push({ i, f, remBefore, digit, remAfter: remaining, availBefore, pick });
+        const remBefore = remaining;
+        const digit = Math.floor(remaining / blockSize);
+        const pick = availBefore[digit];
+        remaining = remaining % blockSize;
+
+        steps.push({
+          position,
+          i,
+          blockSize,
+          remBefore,
+          digit,
+          remAfter: remaining,
+          availBefore,
+          pick,
+          choiceBlocks: choiceBlocksFor(availBefore, blockSize)
+        });
+
         perm.push(pick);
         avail.splice(digit, 1);
       }
+
       return { steps, perm };
     }
 
-    // --- State ---
-    const state = { n: 4, perm: [0, 1, 2, 3] };
+    const state = {
+      n: 4,
+      perm: defaultPermFor(4),
+      encodeFocus: 0,
+      decodeFocus: 0
+    };
+
+    function clampFocus() {
+      state.encodeFocus = clamp(state.encodeFocus, 0, state.n - 1);
+      state.decodeFocus = clamp(state.decodeFocus, 0, state.n - 1);
+    }
 
     function setN(n) {
       state.n = n;
-      state.perm = [...Array(n).keys()];
+      state.perm = defaultPermFor(n);
+      state.encodeFocus = 0;
+      state.decodeFocus = 0;
+      render();
+    }
+
+    function resetExample() {
+      state.perm = defaultPermFor(state.n);
+      state.encodeFocus = 0;
+      state.decodeFocus = 0;
       render();
     }
 
     function setPermFromInt(num) {
       const max = factorial(state.n) - 1;
-      if (num < 0 || num > max) return;
+      if (!Number.isInteger(num) || num < 0 || num > max) return false;
       state.perm = intToPermSteps(num, state.n).perm;
+      clampFocus();
       render();
+      return true;
     }
 
     function movePerm(from, dir) {
       const to = from + dir;
       if (to < 0 || to >= state.n) return;
-      const p = [...state.perm];
-      [p[from], p[to]] = [p[to], p[from]];
-      state.perm = p;
+      const next = [...state.perm];
+      [next[from], next[to]] = [next[to], next[from]];
+      state.perm = next;
+      state.encodeFocus = to;
+      state.decodeFocus = to;
       render();
     }
 
-    // --- Render ---
+    function setEncodeFocus(position) {
+      state.encodeFocus = clamp(position, 0, state.n - 1);
+      render();
+    }
+
+    function setDecodeFocus(position) {
+      state.decodeFocus = clamp(position, 0, state.n - 1);
+      render();
+    }
+
+    function renderEncodeFocus(step, n) {
+      return `
+        <div class="step-controls">
+          <div class="step-nav">
+            <button class="nav-btn" data-encode-shift="-1" ${step.position === 0 ? 'disabled' : ''}>Prev step</button>
+            <button class="nav-btn" data-encode-shift="1" ${step.position === n - 1 ? 'disabled' : ''}>Next step</button>
+          </div>
+          <div class="step-strip">
+            ${Array.from({ length: n }, (_, position) => `
+              <button class="step-btn ${position === step.position ? 'active' : ''}" data-encode-focus="${position}">
+                perm[${position}]
+              </button>
+            `).join('')}
+          </div>
+        </div>
+        <div class="focus-panel">
+          <div class="focus-title">Step ${step.position + 1} of ${n}: choose <code>perm[${step.position}] = ${labelFor(step.pick)}</code></div>
+          <p class="section-copy">
+            Forget the items already used earlier. For this slot, only the remaining items matter.
+            The Lehmer digit is just the chosen item's index inside that remaining list, and that list stays in original index order. It is never re-sorted by name.
+          </p>
+          <div class="focus-grid">
+            <div class="focus-card">
+              <h3>Remaining items in original order</h3>
+              <p>The blue outline marks the chosen item. Red outlines are the earlier items that count toward the digit.</p>
+              ${fmtTokenRow(step.availBefore, step.digit)}
+            </div>
+            <div class="focus-card">
+              <h3>Lehmer digit</h3>
+              <p>${encodeDigitExplanation(step)}</p>
+              <div class="formula"><code>L${step.position}</code> can only be in <code>0..${step.availBefore.length - 1}</code>, because there are ${step.availBefore.length} unused items left.</div>
+              <div class="mini-stack">
+                <div class="snippet-label">Items being counted</div>
+                ${fmtPlainTokens(step.beforeItems)}
+              </div>
+            </div>
+            <div class="focus-card">
+              <h3>Why factorials appear here</h3>
+              <p>After this choice, there are <code>${n - 1 - step.position}</code> slots left. Each option at this step therefore owns <code>${n - 1 - step.position}!</code> = <code>${step.blockSize}</code> completions.</p>
+              <div class="formula"><code>skipped = ${step.digit} x ${step.blockSize} = ${step.skipped}</code></div>
+              <p class="small-muted">${skippedExplanation(step)}</p>
+            </div>
+            <div class="focus-card">
+              <h3>Same step as the running formula</h3>
+              <p>This is the exact update used by <code>permToInt</code>.</p>
+              <div class="formula"><code>${step.numBefore} x ${step.radix} + ${step.digit} = ${step.numAfter}</code></div>
+              <p class="small-muted">The radix is <code>${step.radix}</code> because there are ${step.radix} possible digits at this step.</p>
+            </div>
+          </div>
+          <div class="sub-snippet">
+            <div class="snippet-label">Local blocks for this slot</div>
+            <p class="small-muted">
+              Each item below owns a block of <code>${step.blockSize}</code> ${plural(step.blockSize, 'completion', 'completions')}.
+              The highlighted block is the chosen one.
+            </p>
+            ${blockCardsHTML(step.choiceBlocks, step.digit)}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderDecodeFocus(step, n) {
+      return `
+        <div class="step-controls">
+          <div class="step-nav">
+            <button class="nav-btn" data-decode-shift="-1" ${step.position === 0 ? 'disabled' : ''}>Prev step</button>
+            <button class="nav-btn" data-decode-shift="1" ${step.position === n - 1 ? 'disabled' : ''}>Next step</button>
+          </div>
+          <div class="step-strip">
+            ${Array.from({ length: n }, (_, position) => `
+              <button class="step-btn ${position === step.position ? 'active' : ''}" data-decode-focus="${position}">
+                perm[${position}]
+              </button>
+            `).join('')}
+          </div>
+        </div>
+        <div class="focus-panel">
+          <div class="focus-title">Step ${step.position + 1} of ${n}: fill <code>perm[${step.position}]</code></div>
+          <p class="section-copy">
+            At this step, the remaining rank lives inside a set of equal-sized factorial blocks.
+            The quotient picks a block; the remainder becomes the next rank to decode. The remaining list is still kept in original index order, not re-sorted by label.
+          </p>
+          <div class="focus-grid">
+            <div class="focus-card">
+              <h3>Current remaining rank</h3>
+              <p>Before choosing this slot, we still need to decode <code>${step.remBefore}</code>.</p>
+              <div class="formula"><code>block size = ${step.i}! = ${step.blockSize}</code></div>
+              <p class="small-muted">Every possible item at this slot owns one block of that size.</p>
+            </div>
+            <div class="focus-card">
+              <h3>Choose the block</h3>
+              <p>Divide the current remaining rank by the block size.</p>
+              <div class="formula"><code>digit = floor(${step.remBefore} / ${step.blockSize}) = ${step.digit}</code></div>
+              <p class="small-muted">That quotient says "pick the item at index ${step.digit} from the remaining list".</p>
+            </div>
+            <div class="focus-card">
+              <h3>Pick from the remaining items</h3>
+              <p>The chosen item is outlined in blue. Earlier items correspond to earlier blocks.</p>
+              ${fmtTokenRow(step.availBefore, step.digit)}
+              <div class="mini-stack">
+                <div class="snippet-label">Chosen item</div>
+                ${fmtPlainTokens([step.pick])}
+              </div>
+            </div>
+            <div class="focus-card">
+              <h3>Carry the remainder forward</h3>
+              <p>Once the block is chosen, only the offset inside that block still matters.</p>
+              <div class="formula"><code>${step.remBefore} mod ${step.blockSize} = ${step.remAfter}</code></div>
+              <p class="small-muted">So the next step decodes <code>${step.remAfter}</code>, not the whole original rank.</p>
+            </div>
+          </div>
+          <div class="sub-snippet">
+            <div class="snippet-label">Blocks for this slot</div>
+            <p class="small-muted">
+              Each card shows the range of local ranks handled by one possible item at this slot.
+              The highlighted block is the one containing the current remaining rank.
+            </p>
+            ${blockCardsHTML(step.choiceBlocks, step.digit)}
+          </div>
+        </div>
+      `;
+    }
+
     function render() {
       const n = state.n;
       const fact = factorial(n);
+      clampFocus();
 
-      // N buttons
-      document.querySelectorAll('#n-buttons button').forEach(b => {
-        b.classList.toggle('active', +b.dataset.n === n);
+      document.querySelectorAll('#n-buttons button').forEach(button => {
+        button.classList.toggle('active', Number(button.dataset.n) === n);
       });
-      document.getElementById('n-stats').textContent = `N! = ${fact} permutations`;
+      document.getElementById('n-stats').textContent = `N! = ${fact} total orderings`;
 
-      // Permutation editor
       const permList = document.getElementById('perm-list');
-      permList.innerHTML = state.perm.map((idx, r) => `
+      permList.innerHTML = state.perm.map((index, position) => `
         <div class="perm-row">
-          <span class="rank-num">${r}:</span>
-          <span class="item-pill" style="background:${colorFor(idx)}">${labelFor(idx)}</span>
-          <button class="arrow-btn" data-move="${r}" data-dir="-1" ${r === 0 ? 'disabled' : ''} aria-label="Move up">↑</button>
-          <button class="arrow-btn" data-move="${r}" data-dir="1" ${r === n - 1 ? 'disabled' : ''} aria-label="Move down">↓</button>
+          <span class="rank-num">perm[${position}]</span>
+          <span class="item-pill" style="background:${colorFor(index)}"><span class="item-index">#${index}</span><span>${labelFor(index)}</span></span>
+          <button class="arrow-btn" data-move="${position}" data-dir="-1" ${position === 0 ? 'disabled' : ''} aria-label="Move up">↑</button>
+          <button class="arrow-btn" data-move="${position}" data-dir="1" ${position === n - 1 ? 'disabled' : ''} aria-label="Move down">↓</button>
         </div>
       `).join('');
 
-      // Encode
-      const { steps: encSteps, num } = permToIntSteps(state.perm);
+      const { steps: encodeSteps, num } = permToIntSteps(state.perm);
+      const { steps: decodeSteps } = intToPermSteps(num, n);
 
-      // Integer inputs. Only skip a self-assignment that would reset the user's
-      // cursor / slider thumb — never skip updates that reflect state changed
-      // from a different control. (On iOS taps don't move focus off these
-      // inputs, so an activeElement guard here would block legitimate updates.)
       const intInput = document.getElementById('int-input');
       const intRange = document.getElementById('int-range');
       intInput.max = fact - 1;
       intRange.max = fact - 1;
       if (intInput.value !== String(num)) intInput.value = num;
-      if (+intRange.value !== num) intRange.value = num;
+      if (Number(intRange.value) !== num) intRange.value = num;
       document.getElementById('int-readout').textContent = `rank ${num} of 0..${fact - 1}`;
 
-      // Encode table
+      const encodeFocus = encodeSteps[state.encodeFocus];
+      const decodeFocus = decodeSteps[state.decodeFocus];
+      document.getElementById('encode-focus-panel').innerHTML = renderEncodeFocus(encodeFocus, n);
+      document.getElementById('decode-focus-panel').innerHTML = renderDecodeFocus(decodeFocus, n);
+
       document.getElementById('encode-table').innerHTML = `
         <tr>
-          <th>step i</th>
-          <th>avail (before)</th>
-          <th>pick perm[i]</th>
-          <th>Lᵢ = index in avail</th>
-          <th>num ← num·(N−i) + Lᵢ</th>
+          <th>slot</th>
+          <th>remaining items (original order)</th>
+          <th>current item</th>
+          <th>digit</th>
+          <th>running update</th>
         </tr>
-        ${encSteps.map(s => `<tr>
-          <td class="num">${s.i}</td>
-          <td>${fmtAvail(s.availBefore)}</td>
-          <td><span style="background:${colorFor(s.pick)};padding:0 6px;border-radius:3px;font-weight:600">${labelFor(s.pick)}</span></td>
-          <td class="num">${s.idx}</td>
-          <td class="num">${s.numBefore} · ${s.multiplier} + ${s.idx} = <strong>${s.numAfter}</strong></td>
-        </tr>`).join('')}
+        ${encodeSteps.map(step => `
+          <tr class="${step.position === state.encodeFocus ? 'focus-row' : ''}" data-encode-row="${step.position}">
+            <td class="num">perm[${step.position}]</td>
+            <td>${fmtTokenRow(step.availBefore, step.digit)}</td>
+            <td>${fmtPlainTokens([step.pick])}</td>
+            <td class="num"><code>L${step.position} = ${step.digit}</code></td>
+            <td class="num"><code>${step.numBefore} x ${step.radix} + ${step.digit} = ${step.numAfter}</code></td>
+          </tr>
+        `).join('')}
       `;
 
-      // Summary
-      const lehmer = encSteps.map(s => s.idx);
-      const factTerms = lehmer.map((L, i) => `${L}·${n - 1 - i}!`).join(' + ');
-      const factValues = lehmer.map((L, i) => `${L * factorial(n - 1 - i)}`).join(' + ');
+      const lehmerDigits = encodeSteps.map(step => step.digit);
+      const factoradicTerms = lehmerDigits.map((digit, position) => `${digit} x ${n - 1 - position}!`).join(' + ');
+      const factoradicValues = lehmerDigits.map((digit, position) => `${digit * factorial(n - 1 - position)}`).join(' + ');
+      const factorialPlaces = encodeSteps.map(step => `${n - 1 - step.position}! = ${step.blockSize}`).join(', ');
+
       document.getElementById('encode-summary').innerHTML = `
-        <div>Lehmer code: <code>(${lehmer.join(', ')})</code></div>
-        <div>Factoradic: <code>${factTerms}</code> = <code>${factValues}</code> = <strong>${num}</strong></div>
+        <div><strong>Lehmer digits:</strong> <code>(${lehmerDigits.join(', ')})</code></div>
+        <div><strong>Allowed ranges:</strong> <code>${digitRangesText(n)}</code></div>
+        <div><strong>Factorial place values:</strong> <code>${factorialPlaces}</code></div>
+        <div><strong>Rank:</strong> <code>${factoradicTerms}</code> = <code>${factoradicValues}</code> = <strong>${num}</strong></div>
       `;
 
-      // Decode
-      const { steps: decSteps } = intToPermSteps(num, n);
       document.getElementById('decode-table').innerHTML = `
         <tr>
-          <th>i</th>
-          <th>f = i!</th>
-          <th>remaining</th>
-          <th>digit = ⌊rem / f⌋</th>
-          <th>avail (before)</th>
-          <th>pick = avail[digit]</th>
-          <th>remaining ← rem mod f</th>
+          <th>slot</th>
+          <th>block size</th>
+          <th>remaining rank</th>
+          <th>digit</th>
+          <th>remaining items (original order)</th>
+          <th>pick</th>
+          <th>new remainder</th>
         </tr>
-        ${decSteps.map(s => `<tr>
-          <td class="num">${s.i}</td>
-          <td class="num">${s.f}</td>
-          <td class="num">${s.remBefore}</td>
-          <td class="num">⌊${s.remBefore} / ${s.f}⌋ = ${s.digit}</td>
-          <td>${fmtAvail(s.availBefore)}</td>
-          <td><span style="background:${colorFor(s.pick)};padding:0 6px;border-radius:3px;font-weight:600">${labelFor(s.pick)}</span></td>
-          <td class="num">${s.remAfter}</td>
-        </tr>`).join('')}
+        ${decodeSteps.map(step => `
+          <tr class="${step.position === state.decodeFocus ? 'focus-row' : ''}" data-decode-row="${step.position}">
+            <td class="num">perm[${step.position}]</td>
+            <td class="num"><code>${step.i}! = ${step.blockSize}</code></td>
+            <td class="num"><code>${step.remBefore}</code></td>
+            <td class="num"><code>floor(${step.remBefore}/${step.blockSize}) = ${step.digit}</code></td>
+            <td>${fmtTokenRow(step.availBefore, step.digit)}</td>
+            <td>${fmtPlainTokens([step.pick])}</td>
+            <td class="num"><code>${step.remAfter}</code></td>
+          </tr>
+        `).join('')}
       `;
 
-      // All permutations table
       document.getElementById('all-count').textContent = `(${fact} rows)`;
-      const rows = [];
-      for (let k = 0; k < fact; k++) {
-        const { perm } = intToPermSteps(k, n);
+      const allRows = [];
+      for (let rank = 0; rank < fact; rank++) {
+        const { perm } = intToPermSteps(rank, n);
         const { steps } = permToIntSteps(perm);
-        const L = steps.map(s => s.idx);
-        rows.push(`<tr class="${k === num ? 'highlight' : ''}" data-int="${k}">
-          <td class="num">${k}</td>
-          <td>${fmtPermArray(perm)}</td>
-          <td class="num">(${L.join(', ')})</td>
-        </tr>`);
+        const digits = steps.map(step => step.digit);
+        allRows.push(`
+          <tr class="${rank === num ? 'highlight' : ''}" data-int="${rank}">
+            <td class="num">${rank}</td>
+            <td>${fmtPermArray(perm)}</td>
+            <td class="num">(${digits.join(', ')})</td>
+          </tr>
+        `);
       }
       document.getElementById('all-table').innerHTML = `
-        <tr><th>rank</th><th>permutation</th><th>Lehmer</th></tr>
-        ${rows.join('')}
+        <tr><th>rank</th><th>permutation</th><th>digits</th></tr>
+        ${allRows.join('')}
       `;
 
-      // Scroll highlighted row into view within its own container (never the window)
-      const hl = document.querySelector('#all-table tr.highlight');
-      if (hl) {
-        const wrap = hl.closest('.all-wrap');
-        const er = hl.getBoundingClientRect();
-        const cr = wrap.getBoundingClientRect();
-        if (er.top < cr.top) wrap.scrollTop -= cr.top - er.top;
-        else if (er.bottom > cr.bottom) wrap.scrollTop += er.bottom - cr.bottom;
+      const highlightedRow = document.querySelector('#all-table tr.highlight');
+      if (highlightedRow) {
+        const wrap = highlightedRow.closest('.all-wrap');
+        const rowRect = highlightedRow.getBoundingClientRect();
+        const wrapRect = wrap.getBoundingClientRect();
+        if (rowRect.top < wrapRect.top) wrap.scrollTop -= wrapRect.top - rowRect.top;
+        else if (rowRect.bottom > wrapRect.bottom) wrap.scrollTop += rowRect.bottom - wrapRect.bottom;
       }
     }
 
-    // --- Events ---
-    document.getElementById('n-buttons').addEventListener('click', (e) => {
-      const btn = e.target.closest('button[data-n]');
-      if (btn) setN(+btn.dataset.n);
+    document.getElementById('n-buttons').addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-n]');
+      if (button) setN(Number(button.dataset.n));
     });
 
-    document.getElementById('perm-list').addEventListener('click', (e) => {
-      const btn = e.target.closest('button[data-move]');
-      if (btn) movePerm(+btn.dataset.move, +btn.dataset.dir);
+    document.getElementById('reset-example').addEventListener('click', () => {
+      resetExample();
     });
 
-    document.getElementById('int-input').addEventListener('input', (e) => {
-      const v = parseInt(e.target.value, 10);
-      if (Number.isInteger(v)) setPermFromInt(v);
+    document.getElementById('perm-list').addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-move]');
+      if (button) movePerm(Number(button.dataset.move), Number(button.dataset.dir));
     });
 
-    document.getElementById('int-range').addEventListener('input', (e) => {
-      setPermFromInt(parseInt(e.target.value, 10));
+    document.getElementById('int-input').addEventListener('input', (event) => {
+      const value = parseInt(event.target.value, 10);
+      if (Number.isInteger(value)) setPermFromInt(value);
     });
 
-    document.getElementById('all-table').addEventListener('click', (e) => {
-      const tr = e.target.closest('tr[data-int]');
-      if (tr) setPermFromInt(+tr.dataset.int);
+    document.getElementById('int-input').addEventListener('change', (event) => {
+      const value = parseInt(event.target.value, 10);
+      if (!setPermFromInt(value)) render();
+    });
+
+    document.getElementById('int-range').addEventListener('input', (event) => {
+      setPermFromInt(parseInt(event.target.value, 10));
+    });
+
+    document.getElementById('encode-focus-panel').addEventListener('click', (event) => {
+      const focusButton = event.target.closest('button[data-encode-focus]');
+      if (focusButton) {
+        setEncodeFocus(Number(focusButton.dataset.encodeFocus));
+        return;
+      }
+
+      const shiftButton = event.target.closest('button[data-encode-shift]');
+      if (shiftButton) {
+        setEncodeFocus(state.encodeFocus + Number(shiftButton.dataset.encodeShift));
+      }
+    });
+
+    document.getElementById('decode-focus-panel').addEventListener('click', (event) => {
+      const focusButton = event.target.closest('button[data-decode-focus]');
+      if (focusButton) {
+        setDecodeFocus(Number(focusButton.dataset.decodeFocus));
+        return;
+      }
+
+      const shiftButton = event.target.closest('button[data-decode-shift]');
+      if (shiftButton) {
+        setDecodeFocus(state.decodeFocus + Number(shiftButton.dataset.decodeShift));
+      }
+    });
+
+    document.getElementById('encode-table').addEventListener('click', (event) => {
+      const row = event.target.closest('tr[data-encode-row]');
+      if (row) setEncodeFocus(Number(row.dataset.encodeRow));
+    });
+
+    document.getElementById('decode-table').addEventListener('click', (event) => {
+      const row = event.target.closest('tr[data-decode-row]');
+      if (row) setDecodeFocus(Number(row.dataset.decodeRow));
+    });
+
+    document.getElementById('all-table').addEventListener('click', (event) => {
+      const row = event.target.closest('tr[data-int]');
+      if (row) setPermFromInt(Number(row.dataset.int));
     });
 
     render();
