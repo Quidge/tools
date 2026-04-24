@@ -7,186 +7,755 @@
 <meta name="description" content="A simple ranked-choice voting tool for small groups. Create a ballot, share a link, collect vote codes, and see Borda-count results — no accounts or tracking.">
 <script defer src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: system-ui, sans-serif; background: #f8f9fa; color: #202124; line-height: 1.5; }
-button, input { font: inherit; }
-#app { max-width: 800px; margin: 0 auto; padding: 20px; }
-h1 { font-size: 1.5rem; margin-bottom: 16px; }
+:root {
+  --page-max-width: 800px;
+  --page-padding: 24px;
+  --page-padding-mobile: 16px;
 
-.card { background: white; border: 1px solid #dadce0; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
 
-.btn {
-  display: inline-flex; align-items: center; justify-content: center;
-  padding: 10px 20px; border: 1px solid #dadce0; border-radius: 8px;
-  background: white; color: #202124; font-size: 0.95rem; cursor: pointer;
-  transition: background 0.15s; text-decoration: none;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+
+  --line-heading: 1.25;
+  --line-ui: 1.4;
+  --line-copy: 1.5;
+  --control-min-height: 44px;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --transition-fast: 0.15s;
+
+  /* --- Hex fallbacks (pre-oklch browsers) --- */
+  --bg: #f8f9fa;
+  --surface: #ffffff;
+  --hover: #f1f3f4;
+  --border: #dadce0;
+  --text-muted: #9aa0a6;
+  --text-secondary: #5f6368;
+  --text-primary: #202124;
+  --toast-bg: #323232;
+
+  --accent-light: #e8f0fe;
+  --accent: #2d5ed4;
+  --accent-hover: #1765cc;
+
+  --error-bg: #fce8e6;
+  --error: #bb061e;
+  --success-bg: #e6f4ea;
+  --success: #00763a;
+  --warning-bg: #fef7e0;
+  --warning: #996700;
 }
-.btn:hover:not(:disabled) { background: #f1f3f4; }
-.btn:disabled { color: #9aa0a6; opacity: 0.5; cursor: not-allowed; }
-.btn:focus-visible { outline: 2px solid #1a73e8; outline-offset: 2px; }
-.btn-primary { background: #1a73e8; color: white; border-color: #1a73e8; }
-.btn-primary:hover:not(:disabled) { background: #1557b0; }
-.btn-full { width: 100%; }
 
-input[type="text"] {
-  width: 100%; padding: 10px 12px; border: 1px solid #dadce0; border-radius: 8px;
-  font-size: 0.95rem; color: #202124; background: white;
+@supports (color: oklch(0 0 0)) {
+  :root {
+    --bg: oklch(0.975 0.003 264);
+    --surface: oklch(1 0 0);
+    --hover: oklch(0.955 0.003 264);
+    --border: oklch(0.88 0.005 264);
+    --text-muted: oklch(0.69 0.01 264);
+    --text-secondary: oklch(0.50 0.01 264);
+    --text-primary: oklch(0.23 0.005 264);
+    --toast-bg: oklch(0.27 0 0);
+
+    --accent-light: oklch(0.93 0.04 264);
+    --accent: oklch(0.52 0.19 264);
+    --accent-hover: oklch(0.495 0.18 264);
+
+    --error-bg: oklch(0.94 0.03 25);
+    --error: oklch(0.50 0.2 25);
+    --success-bg: oklch(0.94 0.04 155);
+    --success: oklch(0.49 0.14 155);
+    --warning-bg: oklch(0.94 0.05 85);
+    --warning: oklch(0.55 0.15 85);
+  }
 }
-input[type="text"]:focus-visible { outline: 2px solid #1a73e8; outline-offset: -1px; border-color: #1a73e8; }
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: system-ui, sans-serif;
+  font-size: var(--text-base);
+  background: var(--bg);
+  color: var(--text-primary);
+  line-height: var(--line-copy);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+#app {
+  max-width: var(--page-max-width);
+  margin: 0 auto;
+  padding: var(--page-padding);
+}
+
+h1 {
+  font-size: var(--text-2xl);
+  line-height: var(--line-heading);
+  margin-bottom: var(--space-4);
+}
+
+p.description {
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  margin-bottom: var(--space-6);
+  max-width: 60ch;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.field {
+  margin-bottom: var(--space-4);
+}
+
+.field:last-child {
+  margin-bottom: 0;
+}
+
+label {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: var(--line-ui);
+}
+
+.hint {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--line-copy);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* --- Form controls --- */
+
+input:is(
+  [type="text"],
+  [type="number"],
+  [type="email"],
+  [type="url"],
+  [type="search"],
+  [type="password"],
+  [type="tel"],
+  [type="date"],
+  [type="time"],
+  [type="datetime-local"],
+  [type="month"],
+  [type="week"]
+),
+textarea,
+select {
+  width: 100%;
+  min-height: var(--control-min-height);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-base);
+  line-height: var(--line-ui);
+  background: var(--surface);
+  color: var(--text-primary);
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+input:is(
+  [type="text"],
+  [type="number"],
+  [type="email"],
+  [type="url"],
+  [type="search"],
+  [type="password"],
+  [type="tel"],
+  [type="date"],
+  [type="time"],
+  [type="datetime-local"],
+  [type="month"],
+  [type="week"]
+):focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  border-color: var(--accent);
+}
+
+input:is(
+  [type="text"],
+  [type="number"],
+  [type="email"],
+  [type="url"],
+  [type="search"],
+  [type="password"],
+  [type="tel"]
+)::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+}
+
+textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+/* --- Buttons --- */
+
+button {
+  min-height: var(--control-min-height);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--text-base);
+  font-weight: 500;
+  line-height: var(--line-ui);
+  color: var(--text-primary);
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+button:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-color: var(--accent);
+}
+
+button:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+button.icon-only {
+  min-width: var(--control-min-height);
+  padding: 0;
+}
+
+button.primary {
+  background: var(--accent);
+  color: var(--surface);
+  border-color: var(--accent);
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.full-width { width: 100%; }
+
+/* --- Link styled as button --- */
+
+.action-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-min-height);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: background var(--transition-fast);
+}
+
+.action-link:hover {
+  background: var(--hover);
+}
+
+.action-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* --- Toast --- */
 
 .toast {
-  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-  background: #323232; color: white; padding: 10px 24px; border-radius: 8px;
-  z-index: 2000; opacity: 0; transition: opacity 0.2s ease; pointer-events: none;
-  font-size: 0.9rem; white-space: nowrap;
-}
-.toast.visible { opacity: 1; }
-
-.error-msg {
-  background: #fce8e6; color: #d93025; border: 1px solid #f5c6cb; border-radius: 12px;
-  padding: 24px; margin-bottom: 16px; text-align: center;
-}
-.error-msg strong { display: block; margin-bottom: 8px; font-size: 1.1rem; }
-
-.steps { list-style: none; counter-reset: step; margin: 20px 0; }
-.steps li {
-  counter-increment: step; padding: 10px 0 10px 48px; position: relative;
-  color: #5f6368; font-size: 1rem;
-}
-.steps li::before {
-  content: counter(step); position: absolute; left: 0; top: 8px;
-  width: 32px; height: 32px; border-radius: 50%; background: #1a73e8; color: white;
-  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem;
-}
-
-.section { margin-bottom: 24px; }
-.section-title {
-  font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
-  color: #5f6368; margin-bottom: 12px;
-}
-
-.field-group { margin-bottom: 16px; }
-.field-label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 0.95rem; }
-
-.choice-input-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
-.choice-input-row input { flex: 1; }
-.remove-btn {
-  width: 36px; height: 36px; border: none; background: none; color: #d93025;
-  font-size: 1.3rem; cursor: pointer; border-radius: 8px; display: flex;
-  align-items: center; justify-content: center; flex-shrink: 0;
-}
-.remove-btn:hover { background: #fce8e6; }
-.remove-btn:focus-visible { outline: 2px solid #1a73e8; outline-offset: 2px; }
-
-.choice-slot {
-  display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
-}
-.choice-rank-num {
-  font-size: 1.1rem; font-weight: 700; color: #9aa0a6; min-width: 28px; text-align: right;
-  flex-shrink: 0;
-}
-.choice-row {
-  display: flex; align-items: center; border-radius: 10px; padding: 12px 16px;
-  border-left: 5px solid; gap: 12px; flex: 1; min-width: 0;
-}
-.choice-text { flex: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.arrows { display: flex; gap: 4px; }
-.arrow-btn {
-  width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
-  border: 1px solid rgba(0,0,0,0.08); border-radius: 8px; background: rgba(255,255,255,0.6);
-  cursor: pointer; font-size: 1.2rem; color: #5f6368; transition: background 0.15s;
-}
-.arrow-btn:hover:not(:disabled) { background: rgba(255,255,255,0.9); }
-.arrow-btn:disabled { opacity: 0.25; cursor: not-allowed; }
-.arrow-btn:focus-visible { outline: 2px solid #1a73e8; outline-offset: 2px; }
-
-.vote-code-line {
-  font-size: 1.5rem; font-weight: 500; color: #202124; margin-bottom: 16px; padding: 16px 0;
-}
-.vote-code-display {
-  font-family: 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
-  font-size: 1.5rem; font-weight: 700; letter-spacing: 0.1em;
-  color: #202124; background: #e8eaed; padding: 4px 14px; border-radius: 8px;
-}
-
-.share-row { display: flex; gap: 8px; margin-bottom: 12px; }
-.share-row input {
-  flex: 1; font-family: monospace; font-size: 0.85rem; background: #f8f9fa; color: #5f6368;
-}
-
-.vote-form { display: flex; gap: 8px; margin-bottom: 16px; align-items: flex-start; }
-.vote-form input[name="name"] { flex: 1; min-width: 120px; }
-.code-input {
-  flex: 0 0 120px; text-transform: uppercase; font-family: monospace; letter-spacing: 0.1em;
-}
-.code-input:valid:not(:placeholder-shown) { border-color: #34a853; }
-.code-input:invalid:not(:placeholder-shown) { border-color: #d93025; }
-
-.vote-entry { background: #f8f9fa; border-radius: 8px; margin-bottom: 6px; }
-.vote-entry-header {
-  display: flex; align-items: center; padding: 8px 12px; gap: 8px; cursor: pointer;
-}
-.vote-entry-header:hover { background: rgba(0,0,0,0.02); border-radius: 8px; }
-.vote-name { flex: 1; font-weight: 500; }
-.vote-code-chip {
-  font-family: 'SF Mono', Menlo, monospace; font-size: 0.85rem; color: #202124;
-  background: #e8eaed; padding: 2px 8px; border-radius: 4px; letter-spacing: 0.05em;
+  position: fixed;
+  bottom: var(--space-6);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--toast-bg);
+  color: var(--surface);
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  z-index: 2000;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
   white-space: nowrap;
 }
-.vote-code-label { color: #5f6368; font-size: 0.85rem; }
-.vote-toggle {
-  border: none; background: none; color: #5f6368; cursor: pointer; font-size: 1.1rem;
-  padding: 4px; transition: transform 0.15s;
+
+.toast.visible {
+  opacity: 1;
 }
-.vote-toggle.open { transform: rotate(180deg); }
-.remove-vote {
-  border: none; background: none; color: #d93025; cursor: pointer; font-size: 1.1rem;
-  padding: 4px 8px; border-radius: 4px;
+
+/* --- Error --- */
+
+.error {
+  color: var(--error);
+  padding: var(--space-6);
+  background: var(--error-bg);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-base);
+  margin-bottom: var(--space-4);
+  text-align: center;
 }
-.remove-vote:hover { background: #fce8e6; }
-.remove-vote:focus-visible { outline: 2px solid #1a73e8; outline-offset: 2px; }
-.vote-detail { display: none; padding: 4px 12px 10px; }
-.vote-detail.open { display: block; }
-.vote-detail-row {
-  display: flex; align-items: center; padding: 4px 10px; border-radius: 6px;
-  margin-bottom: 3px; border-left: 3px solid; gap: 8px; font-size: 0.9rem;
+
+.error strong {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-size: var(--text-lg);
+}
+
+/* --- Tool-specific --- */
+
+.steps {
+  list-style: none;
+  counter-reset: step;
+  margin: var(--space-5) 0;
+}
+
+.steps li {
+  counter-increment: step;
+  padding: var(--space-3) 0 var(--space-3) 48px;
+  position: relative;
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+}
+
+.steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: var(--space-2);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: var(--text-sm);
+}
+
+.section {
+  margin-bottom: var(--space-6);
+}
+
+.section-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-3);
+}
+
+.choice-input-row {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  align-items: center;
+}
+
+.choice-input-row input {
+  flex: 1;
+}
+
+.remove-choice-btn {
+  min-width: var(--control-min-height);
+  min-height: var(--control-min-height);
+  border: none;
+  background: none;
+  color: var(--error);
+  font-size: 1.3rem;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.remove-choice-btn:hover:not(:disabled) {
+  background: var(--error-bg);
+}
+
+.choice-slot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.choice-rank-num {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 28px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.choice-row {
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  border-left: 5px solid;
+  gap: var(--space-3);
+  flex: 1;
   min-width: 0;
 }
-.vote-detail-rank { color: #5f6368; min-width: 20px; flex-shrink: 0; font-weight: 600; font-size: 0.85rem; }
-.vote-detail-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+.choice-text {
+  flex: 1;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arrows {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.arrow-btn {
+  min-width: var(--control-min-height);
+  min-height: var(--control-min-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.6);
+  cursor: pointer;
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+  transition: background var(--transition-fast);
+  padding: 0;
+}
+
+.arrow-btn:hover:not(:disabled) {
+  background: rgba(255,255,255,0.9);
+}
+
+.arrow-btn:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.vote-code-line {
+  font-size: var(--text-2xl);
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: var(--space-4);
+  padding: var(--space-4) 0;
+}
+
+.vote-code-display {
+  font-family: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-primary);
+  background: var(--hover);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+}
+
+.share-row {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.share-row input {
+  flex: 1;
+  font-family: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
+  font-size: var(--text-sm);
+  background: var(--bg);
+  color: var(--text-secondary);
+}
+
+.vote-form {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  align-items: flex-start;
+}
+
+.vote-form input[name="name"] {
+  flex: 1;
+  min-width: 120px;
+}
+
+.code-input {
+  flex: 0 0 120px;
+  text-transform: uppercase;
+  font-family: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
+  letter-spacing: 0.1em;
+}
+
+.code-input:valid:not(:placeholder-shown) {
+  border-color: var(--success);
+}
+
+.code-input:invalid:not(:placeholder-shown) {
+  border-color: var(--error);
+}
+
+.vote-entry {
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-2);
+}
+
+.vote-entry-header {
+  display: flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+.vote-entry-header:hover {
+  background: var(--hover);
+  border-radius: var(--radius-sm);
+}
+
+.vote-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.vote-code-chip {
+  font-family: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: var(--hover);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.vote-code-label {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.vote-toggle {
+  color: var(--text-secondary);
+  font-size: var(--text-lg);
+  padding: var(--space-1);
+  transition: transform var(--transition-fast);
+}
+
+.vote-toggle.open {
+  transform: rotate(180deg);
+}
+
+.remove-vote-btn {
+  border: none;
+  background: none;
+  color: var(--error);
+  cursor: pointer;
+  font-size: var(--text-lg);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remove-vote-btn:hover:not(:disabled) {
+  background: var(--error-bg);
+}
+
+.vote-detail {
+  display: none;
+  padding: var(--space-1) var(--space-3) var(--space-3);
+}
+
+.vote-detail.open {
+  display: block;
+}
+
+.vote-detail-row {
+  display: flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-1);
+  border-left: 3px solid;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  min-width: 0;
+}
+
+.vote-detail-rank {
+  color: var(--text-secondary);
+  min-width: 20px;
+  flex-shrink: 0;
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.vote-detail-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
 
 .result-row {
-  display: flex; align-items: center; padding: 10px 16px; border-radius: 10px;
-  margin-bottom: 6px; border-left: 5px solid; gap: 12px;
+  display: flex;
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-2);
+  border-left: 5px solid;
+  gap: var(--space-3);
 }
-.result-rank { font-weight: 700; font-size: 1.1rem; min-width: 32px; color: #5f6368; }
-.result-text { flex: 1; font-weight: 500; }
-.result-score { color: #5f6368; font-size: 0.9rem; white-space: nowrap; }
 
-.empty-state { color: #9aa0a6; text-align: center; padding: 16px; }
+.result-rank {
+  font-weight: 700;
+  font-size: var(--text-lg);
+  min-width: 32px;
+  color: var(--text-secondary);
+}
 
-.qr-modal {
-  border: none; border-radius: 16px; padding: 24px;
-  text-align: center; max-width: 320px; width: 90%; margin: auto;
+.result-text {
+  flex: 1;
+  font-weight: 500;
 }
-.qr-modal::backdrop { background: rgba(0,0,0,0.5); }
-.qr-modal h3 { margin: 0 0 16px; font-size: 1rem; color: #5f6368; }
-.qr-close {
-  position: absolute; top: 8px; right: 12px; border: none; background: none;
-  font-size: 1.5rem; cursor: pointer; color: #5f6368; padding: 4px;
+
+.result-score {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  white-space: nowrap;
 }
-.qr-close:hover { color: #202124; }
-.qr-target { display: inline-block; }
-.qr-target img, .qr-target canvas { display: block; margin: 0 auto; }
+
+.empty-state {
+  color: var(--text-muted);
+  text-align: center;
+  padding: var(--space-4);
+}
+
+.vote-count {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-3);
+}
+
+/* --- Modal --- */
+
+.modal {
+  border: none;
+  border-radius: 16px;
+  padding: var(--space-6);
+  text-align: center;
+  max-width: 320px;
+  width: 90%;
+  margin: auto;
+}
+
+.modal::backdrop {
+  background: rgba(0,0,0,0.5);
+}
+
+.modal h3 {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+
+.modal-close {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-3);
+  border: none;
+  background: none;
+  font-size: var(--text-2xl);
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: var(--space-1);
+  min-width: var(--control-min-height);
+  min-height: var(--control-min-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close:hover:not(:disabled) {
+  background: none;
+  color: var(--text-primary);
+}
+
+.qr-target {
+  display: inline-block;
+}
+
+.qr-target img,
+.qr-target canvas {
+  display: block;
+  margin: 0 auto;
+}
+
+/* --- Responsive --- */
 
 @media (max-width: 600px) {
-  #app { padding: 12px; }
-  .vote-code-line { font-size: 1.3rem; }
-  .vote-code-display { font-size: 1.3rem; }
+  #app { padding: var(--page-padding-mobile); }
+  h1 { font-size: var(--text-xl); }
+  p.description { margin-bottom: var(--space-5); }
+  .vote-code-line { font-size: var(--text-xl); }
+  .vote-code-display { font-size: var(--text-xl); }
   .vote-form { flex-wrap: wrap; }
-  .vote-form input[name="name"], .code-input, .vote-form .btn { width: 100%; flex: none; }
+  .vote-form input[name="name"], .code-input, .vote-form button { width: 100%; flex: none; }
   .share-row { flex-direction: column; }
-  .share-row .btn { width: 100%; }
+  .share-row button, .share-row .action-link { width: 100%; }
 }
 </style>
 </head>
@@ -236,16 +805,16 @@ function escapeAttr(str) {
 function showQRModal(text, title) {
   if (typeof QRCode === 'undefined') { showToast('QR library not loaded \u2014 check your connection'); return; }
   const dialog = document.createElement('dialog');
-  dialog.className = 'qr-modal';
+  dialog.className = 'modal';
   dialog.innerHTML = `
-    <button class="qr-close" autofocus aria-label="Close">\u00d7</button>
+    <button class="modal-close" autofocus aria-label="Close">\u00d7</button>
     <h3>${escapeHTML(title)}</h3>
     <div class="qr-target"></div>`;
   document.body.appendChild(dialog);
   new QRCode(dialog.querySelector('.qr-target'), {
     text, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M
   });
-  dialog.querySelector('.qr-close').addEventListener('click', () => dialog.close());
+  dialog.querySelector('.modal-close').addEventListener('click', () => dialog.close());
   dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
   dialog.addEventListener('close', () => dialog.remove());
   dialog.showModal();
@@ -253,7 +822,14 @@ function showQRModal(text, title) {
 
 function showToast(message) {
   let t = document.getElementById('toast');
-  if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; document.body.appendChild(t); }
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.className = 'toast';
+    t.setAttribute('role', 'status');
+    t.setAttribute('aria-live', 'polite');
+    document.body.appendChild(t);
+  }
   t.textContent = message;
   t.classList.add('visible');
   clearTimeout(t._timeout);
@@ -412,6 +988,10 @@ function getVoteURL() {
 }
 
 function copyToClipboard(text, successMsg) {
+  if (!navigator.clipboard) {
+    showToast('Could not copy \u2014 clipboard API unavailable');
+    return;
+  }
   navigator.clipboard.writeText(text).then(
     () => showToast(successMsg),
     () => showToast('Could not copy \u2014 check clipboard permissions')
@@ -458,14 +1038,14 @@ function renderLanding() {
   return `
     <h1>Rank Vote</h1>
     <div class="card">
-      <p style="margin-bottom:16px;color:#5f6368">A simple ranked-choice voting tool for small groups. No accounts, no tracking \u2014 just share a link.</p>
+      <p class="description">A simple ranked-choice voting tool for small groups. No accounts, no tracking \u2014 just share a link.</p>
       <ol class="steps">
         <li>Create a ballot with your choices</li>
         <li>Share the voting link with your group</li>
         <li>Everyone ranks the choices \u2014 each person gets a short vote code</li>
         <li>Collect the codes and enter them to see the results</li>
       </ol>
-      <button class="btn btn-primary btn-full" data-action="go-create" style="margin-top:20px">Create a ballot</button>
+      <button class="primary full-width" data-action="go-create" style="margin-top:var(--space-5)">Create a ballot</button>
     </div>`;
 }
 
@@ -474,24 +1054,24 @@ function renderCreate() {
   let rows = '';
   for (let i = 0; i < state.choices.length; i++) {
     const rm = state.choices.length > MIN_CHOICES
-      ? `<button class="remove-btn" data-action="remove-choice" data-index="${i}" aria-label="Remove choice ${i + 1}">\u00d7</button>` : '';
+      ? `<button class="remove-choice-btn" data-action="remove-choice" data-index="${i}" aria-label="Remove choice ${i + 1}">\u00d7</button>` : '';
     rows += `<div class="choice-input-row">
-      <input type="text" value="${escapeAttr(state.choices[i])}" placeholder="Choice ${i + 1}" data-field="choice" data-index="${i}" data-focus-id="choice-${i}">
+      <input type="text" value="${escapeAttr(state.choices[i])}" placeholder="Choice ${i + 1}" data-field="choice" data-index="${i}" data-focus-id="choice-${i}" aria-label="Choice ${i + 1}">
       ${rm}</div>`;
   }
   return `
     <h1>Create a Ballot</h1>
     <div class="card">
-      <div class="field-group">
-        <label class="field-label">Title</label>
-        <input type="text" value="${escapeAttr(state.title)}" placeholder="What are we voting on?" data-field="title" data-focus-id="title">
+      <div class="field">
+        <label for="ballot-title">Title</label>
+        <input type="text" id="ballot-title" value="${escapeAttr(state.title)}" placeholder="What are we voting on?" data-field="title" data-focus-id="title">
       </div>
-      <div class="field-group">
-        <label class="field-label">Choices</label>
+      <div class="field">
+        <label>Choices</label>
         ${rows}
-        ${state.choices.length < MAX_CHOICES ? `<button class="btn" data-action="add-choice" style="margin-top:8px">+ Add choice</button>` : ''}
+        ${state.choices.length < MAX_CHOICES ? `<button data-action="add-choice" style="margin-top:var(--space-2)">+ Add choice</button>` : ''}
       </div>
-      <button class="btn btn-primary btn-full" data-action="create-ballot" ${valid ? '' : 'disabled'}>Create ballot</button>
+      <button class="primary full-width" data-action="create-ballot" ${valid ? '' : 'disabled'}>Create ballot</button>
     </div>`;
 }
 
@@ -514,11 +1094,11 @@ function renderVote() {
   }
   return `
     <h1>${escapeHTML(title)}</h1>
-    <p style="color:#5f6368;margin-bottom:16px">Rank the choices in your preferred order.</p>
+    <p class="description">Rank the choices in your preferred order.</p>
     <div class="section">${rows}</div>
     <div class="card" style="text-align:center">
       <div class="vote-code-line">Code: <span class="vote-code-display">${code}</span></div>
-      <button class="btn btn-primary btn-full" data-action="copy-code" data-code="${code}">Copy vote code</button>
+      <button class="primary full-width" data-action="copy-code" data-code="${code}">Copy vote code</button>
     </div>`;
 }
 
@@ -548,7 +1128,7 @@ function renderTally() {
         <span class="vote-name">${escapeHTML(vote.name)}</span>
         <span><span class="vote-code-label">Code: </span><span class="vote-code-chip">${escapeHTML(vote.code)}</span></span>
         <span class="vote-toggle" data-toggle-index="${i}">\u25BE</span>
-        <button class="remove-vote" data-action="remove-vote" data-index="${i}" aria-label="Remove vote">\u00d7</button>
+        <button class="remove-vote-btn" data-action="remove-vote" data-index="${i}" aria-label="Remove vote">\u00d7</button>
       </div>
       <div class="vote-detail" data-detail-index="${i}">${detailRows}</div>
     </div>`;
@@ -569,10 +1149,10 @@ function renderTally() {
       <div class="section-title">Share with your group</div>
       <div class="share-row">
         <input type="text" value="${escapeAttr(voteURL)}" readonly aria-label="Vote link">
-        <button class="btn" data-action="copy-url">Copy</button>
-        <button class="btn" data-action="qr-vote-url">QR Code</button>
+        <button data-action="copy-url">Copy</button>
+        <button data-action="qr-vote-url">QR Code</button>
       </div>
-      <a href="${escapeAttr(voteURL)}" target="_blank" rel="noopener" class="btn btn-full">Vote on this ballot yourself</a>
+      <a href="${escapeAttr(voteURL)}" target="_blank" rel="noopener" class="action-link full-width">Vote on this ballot yourself</a>
     </div>
     <div class="card section">
       <div class="section-title">Enter votes</div>
@@ -582,24 +1162,24 @@ function renderTally() {
           minlength="${width}" maxlength="${width}" pattern="${pattern}"
           autocapitalize="characters" autocorrect="off" spellcheck="false"
           autocomplete="off" aria-label="Vote code">
-        <button type="submit" class="btn btn-primary">Add</button>
+        <button type="submit" class="primary">Add</button>
       </form>
       ${voteList || '<p class="empty-state">No votes entered yet</p>'}
     </div>
     <div class="card section">
       <div class="section-title">Results</div>
-      <p style="color:#5f6368;margin-bottom:12px">${valid} vote${valid !== 1 ? 's' : ''}</p>
+      <p class="vote-count">${valid} vote${valid !== 1 ? 's' : ''}</p>
       ${valid > 0 ? resultRows : '<p class="empty-state">Add votes to see results</p>'}
     </div>`;
 }
 
 function renderError() {
   return `
-    <div class="error-msg">
+    <div class="error" role="alert">
       <strong>Invalid ballot link</strong>
       <p>This link appears to be corrupted or invalid.</p>
     </div>
-    <button class="btn btn-primary" data-action="go-create">Create a new ballot</button>`;
+    <button class="primary" data-action="go-create">Create a new ballot</button>`;
 }
 
 // --- Event delegation ---
