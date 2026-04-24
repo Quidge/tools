@@ -531,11 +531,65 @@ button.primary:hover:not(:disabled) {
   min-width: 120px;
 }
 
-.code-input {
+/* --- Ghost zero-pad overlay ---
+ * Shows faint leading zeros next to the typed code so the user sees the
+ * full padded value (e.g. "0002") while typing only the significant part.
+ *
+ * How it works:
+ *   The ghost is an absolutely-positioned overlay with two child spans,
+ *   right-aligned via flexbox to match the right-aligned input text.
+ *
+ *   .ghost-pad    — visible faint zeros (shrinks as the user types)
+ *   .ghost-spacer — invisible copy of the input value (takes up space only)
+ *
+ *   Empty input:   ghost [0 0 0 0][        ]   input [            ]
+ *   1 char "2":    ghost [0 0 0  ][ 2      ]   input [           2]
+ *   2 chars "2A":  ghost [0 0    ][ 2 A    ]   input [        2  A]
+ *   Full "0002":   ghost [       ][ 0 0 0 2]   input [  0  0  0  2]
+ *                         ^^pad^^  ^^spacer^          ^^^input text^
+ *                         visible  invisible          visible
+ *
+ *   Because the spacer mirrors the input text with identical font metrics,
+ *   the pad zeros are always positioned flush-left of the typed characters
+ *   with no gap and no overlap.  On blur/submit, short values are left-
+ *   padded to CODE_WIDTH so the final stored code is always full-width.
+ */
+.code-input-wrapper {
+  position: relative;
   flex: 0 0 120px;
+}
+
+.code-ghost {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid transparent;
+  font-family: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
+  font-size: var(--text-base);
+  letter-spacing: 0.1em;
+  pointer-events: none;
+  user-select: none;
+}
+
+.ghost-pad {
+  color: var(--text-muted);
+  opacity: 0.4;
+}
+
+.ghost-spacer {
+  visibility: hidden;
+}
+
+.code-input {
+  width: 100%;
+  text-align: right;
   text-transform: uppercase;
   font-family: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
   letter-spacing: 0.1em;
+  background: transparent;
 }
 
 .code-input:valid:not(:placeholder-shown) {
@@ -753,7 +807,7 @@ button.primary:hover:not(:disabled) {
   .vote-code-line { font-size: var(--text-xl); }
   .vote-code-display { font-size: var(--text-xl); }
   .vote-form { flex-wrap: wrap; }
-  .vote-form input[name="name"], .code-input, .vote-form button { width: 100%; flex: none; }
+  .vote-form input[name="name"], .code-input-wrapper, .vote-form button { width: 100%; flex: none; }
   .share-row { flex-direction: column; }
   .share-row button, .share-row .action-link { width: 100%; }
 }
@@ -1161,10 +1215,13 @@ function renderTally() {
       <div class="section-title">Enter votes</div>
       <form class="vote-form" id="vote-form">
         <input type="text" name="name" placeholder="Name" required aria-label="Voter name">
-        <input type="text" name="code" placeholder="Code" required class="code-input"
-          minlength="${CODE_WIDTH}" maxlength="${CODE_WIDTH}" pattern="${pattern}"
-          autocapitalize="characters" autocorrect="off" spellcheck="false"
-          autocomplete="off" aria-label="Vote code">
+        <div class="code-input-wrapper">
+          <span class="code-ghost" aria-hidden="true"><span class="ghost-pad">${'0'.repeat(CODE_WIDTH)}</span><span class="ghost-spacer"></span></span>
+          <input type="text" name="code" placeholder=" " required class="code-input"
+            maxlength="${CODE_WIDTH}"
+            autocapitalize="characters" autocorrect="off" spellcheck="false"
+            autocomplete="off" aria-label="Vote code">
+        </div>
         <button type="submit" class="primary">Add</button>
       </form>
       ${voteList || '<p class="empty-state">No votes entered yet</p>'}
@@ -1299,15 +1356,30 @@ app.addEventListener('input', (e) => {
       input.setSelectionRange(pos, pos);
     }
     const numChoices = state.election.choices.length;
-    if (normalized.length === CODE_WIDTH) {
-      input.setCustomValidity(isValidCode(normalized, numChoices) ? '' : 'Invalid vote code');
+    if (normalized.length > 0) {
+      const padded = normalized.padStart(CODE_WIDTH, '0');
+      input.setCustomValidity(isValidCode(padded, numChoices) ? '' : 'Invalid vote code');
     } else {
       input.setCustomValidity('');
     }
+    updateGhost(input);
     return;
   }
 
   // Duplicate name — don't block via setCustomValidity; handled in submit handler
+});
+
+// Auto-pad short vote codes on blur
+app.addEventListener('focusout', (e) => {
+  if (e.target.matches('[name="code"]') && state.election) {
+    const input = e.target;
+    if (input.value && input.value.length < CODE_WIDTH) {
+      input.value = input.value.padStart(CODE_WIDTH, '0');
+      const numChoices = state.election.choices.length;
+      input.setCustomValidity(isValidCode(input.value, numChoices) ? '' : 'Invalid vote code');
+      updateGhost(input);
+    }
+  }
 });
 
 app.addEventListener('submit', (e) => {
@@ -1316,6 +1388,11 @@ app.addEventListener('submit', (e) => {
 
   const nameInput = e.target.querySelector('[name="name"]');
   const codeInput = e.target.querySelector('[name="code"]');
+  // Auto-pad before validation (handles Enter submit without blur)
+  if (codeInput.value && codeInput.value.length < CODE_WIDTH) {
+    codeInput.value = cb32Normalize(codeInput.value).padStart(CODE_WIDTH, '0');
+    updateGhost(codeInput);
+  }
   const name = nameInput.value.trim();
 
   if (!e.target.checkValidity()) { e.target.reportValidity(); return; }
@@ -1346,6 +1423,18 @@ function syncCreateInputs() {
   const t = app.querySelector('[data-field="title"]');
   if (t) state.title = t.value;
   app.querySelectorAll('[data-field="choice"]').forEach((el, i) => { state.choices[i] = el.value; });
+}
+
+// Update the ghost zero-pad overlay to reflect the current input length.
+// See the "Ghost zero-pad overlay" CSS comment for how the layout works.
+function updateGhost(input) {
+  const wrapper = input.closest('.code-input-wrapper');
+  if (!wrapper) return;
+  const pad = wrapper.querySelector('.ghost-pad');
+  const spacer = wrapper.querySelector('.ghost-spacer');
+  if (!pad || !spacer) return;
+  pad.textContent = '0'.repeat(Math.max(0, CODE_WIDTH - input.value.length));
+  spacer.textContent = input.value;
 }
 
 function updateCreateBtn() {
