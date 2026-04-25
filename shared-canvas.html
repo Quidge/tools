@@ -697,7 +697,7 @@
     // ============================================================
     // Host flow
     // ============================================================
-    async function startHostFlow() {
+    function startHostFlow() {
       if (state.view !== 'idle') {
         showToast('Already in a session');
         return;
@@ -706,29 +706,35 @@
       const dc = pc.createDataChannel('paint', { ordered: true });
       setupDataChannel(dc);
 
-      try {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        await waitForIceComplete(pc);
-      } catch (err) {
-        showToast('Could not create offer: ' + err.message);
-        try { pc.close(); } catch (_) {}
-        return;
-      }
-
-      const compressed = await compressString(pc.localDescription.sdp);
-      const offerFrames = splitFrames(compressed, 'O');
-
+      // Open the modal immediately at the share-link step (which doesn't need
+      // the SDP), and prepare the offer in the background. ICE gathering on
+      // mobile/carrier networks can take several seconds, and we don't want
+      // the button tap to feel unresponsive.
       state.pending = {
         role: 'host',
         pc, dc,
-        offerFrames,
+        offerFrames: null,
         answerReceived: [null, null, null],
         currentFrame: 0,
+        offerReady: null,
       };
       state.view = 'hosting';
       state.step = 'share-link';
       openModal();
+
+      state.pending.offerReady = (async () => {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        await waitForIceComplete(pc);
+        const compressed = await compressString(pc.localDescription.sdp);
+        const frames = splitFrames(compressed, 'O');
+        if (state.pending) state.pending.offerFrames = frames;
+        return frames;
+      })().catch((err) => {
+        showModalError('Could not create offer: ' + err.message);
+        try { pc.close(); } catch (_) {}
+        throw err;
+      });
     }
 
     async function applyAnswerToPending(payloadStr) {
@@ -980,7 +986,17 @@
       });
     }
 
-    function renderHostShowOffer() {
+    async function renderHostShowOffer() {
+      // Frames may still be in progress when the host clicks Next quickly.
+      if (!state.pending.offerFrames) {
+        modalBody.innerHTML = `
+          <h2 id="modal-title">Step 2 of 3 — Show offer</h2>
+          <p class="step-meta">Preparing offer… (gathering ICE candidates)</p>
+        `;
+        try { await state.pending.offerReady; }
+        catch (_) { return; }
+        if (state.step !== 'show-offer' || !state.pending) return;
+      }
       const total = state.pending.offerFrames.length;
       const idx = state.pending.currentFrame;
       modalBody.innerHTML = `
