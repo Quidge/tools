@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<!--
+  New tool files must start as a copy of this template.
+
+  Do not hand-author a brand new root-level HTML file from scratch.
+  From the repository root: `cp .claude/skills/html-tool/assets/template.html <tool-name>.html`
+  Then replace `TOOL_TITLE` / `TOOL_DESCRIPTION` and build the tool on top of this baseline.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TOOL_TITLE</title>
+  <style>
+    :root {
+      --page-max-width: 800px;
+      --page-padding: 24px;
+      --page-padding-mobile: 16px;
+
+      --space-1: 0.25rem;
+      --space-2: 0.5rem;
+      --space-3: 0.75rem;
+      --space-4: 1rem;
+      --space-5: 1.25rem;
+      --space-6: 1.5rem;
+      --space-8: 2rem;
+
+      --text-sm: 0.875rem;
+      --text-base: 1rem;
+      --text-lg: 1.125rem;
+      --text-xl: 1.25rem;
+      --text-2xl: 1.5rem;
+
+      --line-heading: 1.25;
+      --line-ui: 1.4;
+      --line-copy: 1.5;
+      --control-min-height: 44px;
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 12px;
+      --transition-fast: 0.15s;
+
+      /* --- Hex fallbacks (pre-oklch browsers) --- */
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --hover: #f1f3f4;
+      --border: #dadce0;
+      --text-muted: #9aa0a6;
+      --text-secondary: #5f6368;
+      --text-primary: #202124;
+      --toast-bg: #323232;
+
+      --accent-light: #e8f0fe;
+      --accent: #2d5ed4;
+      --accent-hover: #1765cc;
+
+      --error-bg: #fce8e6;
+      --error: #bb061e;
+      --success-bg: #e6f4ea;
+      --success: #00763a;
+      --warning-bg: #fef7e0;
+      --warning: #996700;
+    }
+
+    @supports (color: oklch(0 0 0)) {
+      :root {
+        --bg: oklch(0.975 0.003 264);
+        --surface: oklch(1 0 0);
+        --hover: oklch(0.955 0.003 264);
+        --border: oklch(0.88 0.005 264);
+        --text-muted: oklch(0.69 0.01 264);
+        --text-secondary: oklch(0.50 0.01 264);
+        --text-primary: oklch(0.23 0.005 264);
+        --toast-bg: oklch(0.27 0 0);
+
+        --accent-light: oklch(0.93 0.04 264);
+        --accent: oklch(0.52 0.19 264);
+        --accent-hover: oklch(0.495 0.18 264);
+
+        --error-bg: oklch(0.94 0.03 25);
+        --error: oklch(0.50 0.2 25);
+        --success-bg: oklch(0.94 0.04 155);
+        --success: oklch(0.49 0.14 155);
+        --warning-bg: oklch(0.94 0.05 85);
+        --warning: oklch(0.55 0.15 85);
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, sans-serif;
+      font-size: var(--text-base);
+      background: var(--bg);
+      color: var(--text-primary);
+      line-height: var(--line-copy);
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    #app {
+      max-width: var(--page-max-width);
+      margin: 0 auto;
+      padding: var(--page-padding);
+    }
+
+    h1 {
+      font-size: var(--text-2xl);
+      line-height: var(--line-heading);
+      margin-bottom: var(--space-4);
+    }
+
+    p.description {
+      color: var(--text-secondary);
+      font-size: var(--text-base);
+      margin-bottom: var(--space-6);
+      max-width: 60ch;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-4);
+      margin-bottom: var(--space-4);
+    }
+
+    .field {
+      margin-bottom: var(--space-4);
+    }
+
+    .field:last-child {
+      margin-bottom: 0;
+    }
+
+    label {
+      display: block;
+      margin-bottom: var(--space-2);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      line-height: var(--line-ui);
+    }
+
+    .hint {
+      margin-top: var(--space-2);
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--line-copy);
+    }
+
+    .actions {
+      display: flex;
+      gap: var(--space-2);
+      flex-wrap: wrap;
+    }
+
+    /* --- Form controls --- */
+
+    input:is(
+      [type="text"],
+      [type="number"],
+      [type="email"],
+      [type="url"],
+      [type="search"],
+      [type="password"],
+      [type="tel"],
+      [type="date"],
+      [type="time"],
+      [type="datetime-local"],
+      [type="month"],
+      [type="week"]
+    ),
+    textarea,
+    select {
+      width: 100%;
+      min-height: var(--control-min-height);
+      padding: var(--space-2) var(--space-3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-base);
+      line-height: var(--line-ui);
+      background: var(--surface);
+      color: var(--text-primary);
+      transition: border-color var(--transition-fast), background var(--transition-fast);
+    }
+
+    input:is(
+      [type="text"],
+      [type="number"],
+      [type="email"],
+      [type="url"],
+      [type="search"],
+      [type="password"],
+      [type="tel"],
+      [type="date"],
+      [type="time"],
+      [type="datetime-local"],
+      [type="month"],
+      [type="week"]
+    ):focus-visible,
+    textarea:focus-visible,
+    select:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -1px;
+      border-color: var(--accent);
+    }
+
+    input:is(
+      [type="text"],
+      [type="number"],
+      [type="email"],
+      [type="url"],
+      [type="search"],
+      [type="password"],
+      [type="tel"]
+    )::placeholder,
+    textarea::placeholder {
+      color: var(--text-muted);
+    }
+
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    /* --- Buttons --- */
+
+    button {
+      min-height: var(--control-min-height);
+      padding: var(--space-2) var(--space-4);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: var(--text-base);
+      font-weight: 500;
+      line-height: var(--line-ui);
+      color: var(--text-primary);
+      transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+    }
+
+    button:hover:not(:disabled) {
+      background: var(--hover);
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-color: var(--accent);
+    }
+
+    button:disabled {
+      color: var(--text-muted);
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    button.icon-only {
+      min-width: var(--control-min-height);
+      padding: 0;
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: var(--surface);
+      border-color: var(--accent);
+    }
+
+    button.primary:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    /* --- Responsive --- */
+
+    @media (max-width: 600px) {
+      #app { padding: var(--page-padding-mobile); }
+      h1 { font-size: var(--text-xl); }
+      p.description { margin-bottom: var(--space-5); }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>TOOL_TITLE</h1>
+    <p class="description">TOOL_DESCRIPTION</p>
+
+    <!--
+      Tool UI goes here.
+      Prefer `.field` wrappers, visible `<label>` elements, and `.actions` for button rows.
+      Add optional helpers and UI patterns only when the tool needs them.
+    -->
+  </div>
+
+  <script>
+    // --- Tool logic ---
+
+    // Script is at end of <body>, DOM is already available.
+    // Add helper functions only when the tool needs them.
+    // Initialize tool here.
+  </script>
+</body>
+</html>
