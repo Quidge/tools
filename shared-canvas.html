@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shared Canvas</title>
+  <style>
+    :root {
+      --page-max-width: 800px;
+      --page-padding: 24px;
+      --page-padding-mobile: 16px;
+
+      --space-1: 0.25rem;
+      --space-2: 0.5rem;
+      --space-3: 0.75rem;
+      --space-4: 1rem;
+      --space-5: 1.25rem;
+      --space-6: 1.5rem;
+      --space-8: 2rem;
+
+      --text-sm: 0.875rem;
+      --text-base: 1rem;
+      --text-lg: 1.125rem;
+      --text-xl: 1.25rem;
+      --text-2xl: 1.5rem;
+
+      --line-heading: 1.25;
+      --line-ui: 1.4;
+      --line-copy: 1.5;
+      --control-min-height: 44px;
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 12px;
+      --transition-fast: 0.15s;
+
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --hover: #f1f3f4;
+      --border: #dadce0;
+      --text-muted: #9aa0a6;
+      --text-secondary: #5f6368;
+      --text-primary: #202124;
+      --toast-bg: #323232;
+
+      --accent-light: #e8f0fe;
+      --accent: #2d5ed4;
+      --accent-hover: #1765cc;
+
+      --error-bg: #fce8e6;
+      --error: #bb061e;
+      --success-bg: #e6f4ea;
+      --success: #00763a;
+      --warning-bg: #fef7e0;
+      --warning: #996700;
+    }
+
+    @supports (color: oklch(0 0 0)) {
+      :root {
+        --bg: oklch(0.975 0.003 264);
+        --surface: oklch(1 0 0);
+        --hover: oklch(0.955 0.003 264);
+        --border: oklch(0.88 0.005 264);
+        --text-muted: oklch(0.69 0.01 264);
+        --text-secondary: oklch(0.50 0.01 264);
+        --text-primary: oklch(0.23 0.005 264);
+        --toast-bg: oklch(0.27 0 0);
+
+        --accent-light: oklch(0.93 0.04 264);
+        --accent: oklch(0.52 0.19 264);
+        --accent-hover: oklch(0.495 0.18 264);
+
+        --error-bg: oklch(0.94 0.03 25);
+        --error: oklch(0.50 0.2 25);
+        --success-bg: oklch(0.94 0.04 155);
+        --success: oklch(0.49 0.14 155);
+        --warning-bg: oklch(0.94 0.05 85);
+        --warning: oklch(0.55 0.15 85);
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      font-size: var(--text-base);
+      background: var(--bg);
+      color: var(--text-primary);
+      line-height: var(--line-copy);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    button, input, select, textarea { font: inherit; }
+
+    /* --- Toolbar --- */
+
+    .toolbar {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-4);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .toolbar h1 {
+      font-size: var(--text-lg);
+      line-height: var(--line-heading);
+      margin: 0;
+    }
+
+    .toolbar .spacer { flex: 1 1 auto; }
+
+    .toolbar .status {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+
+    .swatch {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+    }
+
+    .toolbar .actions {
+      display: flex;
+      gap: var(--space-2);
+      flex-wrap: wrap;
+    }
+
+    /* --- Buttons --- */
+
+    button {
+      min-height: var(--control-min-height);
+      padding: var(--space-2) var(--space-4);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: var(--text-base);
+      font-weight: 500;
+      line-height: var(--line-ui);
+      color: var(--text-primary);
+      transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+    }
+
+    button:hover:not(:disabled) { background: var(--hover); }
+    button:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-color: var(--accent);
+    }
+    button:disabled { color: var(--text-muted); cursor: not-allowed; opacity: 0.5; }
+
+    button.primary {
+      background: var(--accent);
+      color: var(--surface);
+      border-color: var(--accent);
+    }
+    button.primary:hover:not(:disabled) { background: var(--accent-hover); }
+
+    /* --- Canvas --- */
+
+    canvas#canvas {
+      flex: 1 1 auto;
+      display: block;
+      background: var(--surface);
+      touch-action: none;
+      cursor: crosshair;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* --- Modal --- */
+
+    .modal {
+      border: none;
+      border-radius: 16px;
+      padding: var(--space-6);
+      max-width: 480px;
+      width: 92%;
+      margin: auto;
+      background: var(--surface);
+      color: var(--text-primary);
+    }
+    .modal::backdrop { background: rgba(0, 0, 0, 0.5); }
+
+    .modal h2 {
+      font-size: var(--text-xl);
+      line-height: var(--line-heading);
+      margin: 0 0 var(--space-2);
+    }
+
+    .modal .step-meta {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      margin-bottom: var(--space-4);
+    }
+
+    .modal .qr-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-3);
+      margin-bottom: var(--space-4);
+    }
+
+    .qr-box {
+      width: 280px;
+      max-width: 100%;
+      aspect-ratio: 1 / 1;
+      background: #fff;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      padding: var(--space-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .qr-box svg, .qr-box img { width: 100%; height: 100%; display: block; }
+
+    .frame-counter {
+      font-variant-numeric: tabular-nums;
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+
+    .frame-pips {
+      display: inline-flex;
+      gap: var(--space-1);
+      margin-left: var(--space-2);
+      vertical-align: middle;
+    }
+    .frame-pip {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .frame-pip.received { background: var(--success); border-color: var(--success); }
+
+    .video-stage {
+      width: 100%;
+      max-width: 360px;
+      aspect-ratio: 1 / 1;
+      margin: 0 auto var(--space-4);
+      background: #000;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      position: relative;
+    }
+    .video-stage video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: var(--space-2);
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .modal-actions .right {
+      display: flex;
+      gap: var(--space-2);
+      flex-wrap: wrap;
+    }
+
+    .modal-error {
+      color: var(--error);
+      background: var(--error-bg);
+      padding: var(--space-3);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-sm);
+      margin-top: var(--space-3);
+      display: none;
+    }
+    .modal-error.visible { display: block; }
+
+    /* --- Toast --- */
+
+    .toast {
+      position: fixed;
+      bottom: var(--space-6);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--toast-bg);
+      color: #fff;
+      padding: var(--space-3) var(--space-6);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      z-index: 2000;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      pointer-events: none;
+    }
+    .toast.visible { opacity: 1; }
+
+    /* --- Responsive --- */
+
+    @media (max-width: 600px) {
+      .toolbar { padding: var(--space-2) var(--space-3); gap: var(--space-2); }
+      .toolbar h1 { font-size: var(--text-base); }
+      .modal { padding: var(--space-4); }
+      .qr-box { width: 240px; }
+    }
+  </style>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/qrcode-generator@2.0.4/dist/qrcode.js"></script>
+  <script type="module">
+    // qr-scanner@1.4.x loads its worker via dynamic import('./qr-scanner-worker.min.js').
+    // Loading the UMD bundle as a classic <script> from a cross-origin CDN
+    // breaks that import (base URL becomes about:blank), so we import the ESM
+    // build instead — that gives the dynamic import a real CDN base URL.
+    import QrScanner from 'https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.min.js';
+    window.QrScanner = QrScanner;
+    window.dispatchEvent(new Event('qr-scanner-ready'));
+  </script>
+</head>
+<body>
+  <header class="toolbar">
+    <h1>Shared Canvas</h1>
+    <div class="status" aria-live="polite">
+      <span class="swatch" id="color-swatch" title="Your color"></span>
+      <span id="peer-count">Solo</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="actions">
+      <button id="share-btn" class="primary">Share canvas</button>
+      <button id="join-btn">Join canvas</button>
+    </div>
+  </header>
+
+  <canvas id="canvas"></canvas>
+
+  <dialog class="modal" id="modal" aria-labelledby="modal-title">
+    <div id="modal-body"></div>
+  </dialog>
+
+  <script>
+    // ============================================================
+    // Identity
+    // ============================================================
+    const USER_ID_KEY = 'shared-canvas-user-id';
+
+    function getOrCreateUserId() {
+      let id = localStorage.getItem(USER_ID_KEY);
+      if (!id) {
+        id = (crypto.randomUUID && crypto.randomUUID())
+          || (Math.random().toString(36).slice(2) + Date.now().toString(36));
+        localStorage.setItem(USER_ID_KEY, id);
+      }
+      return id;
+    }
+
+    function hueFromString(s) {
+      let h = 0;
+      for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+      return h % 360;
+    }
+
+    const myId = getOrCreateUserId();
+    const myColor = `hsl(${hueFromString(myId)}, 70%, 50%)`;
+
+    // ============================================================
+    // State
+    // ============================================================
+    const state = {
+      view: 'idle',           // 'idle' | 'hosting' | 'joining' | 'connected'
+      step: null,
+      myId,
+      myColor,
+      brushSize: 12,
+      connections: new Map(), // peerId -> {pc, dc, color, id}
+      pending: null,
+    };
+
+    // ============================================================
+    // DOM refs
+    // ============================================================
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const swatchEl = document.getElementById('color-swatch');
+    const peerCountEl = document.getElementById('peer-count');
+    const shareBtn = document.getElementById('share-btn');
+    const joinBtn = document.getElementById('join-btn');
+    const modal = document.getElementById('modal');
+    const modalBody = document.getElementById('modal-body');
+
+    swatchEl.style.background = myColor;
+
+    // ============================================================
+    // Canvas + drawing
+    // ============================================================
+    function resizeCanvas() {
+      const r = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      let snapshot = null;
+      if (canvas.width && canvas.height) {
+        try { snapshot = canvas.toDataURL(); } catch (_) { snapshot = null; }
+      }
+      canvas.width = Math.max(1, Math.floor(r.width * dpr));
+      canvas.height = Math.max(1, Math.floor(r.height * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      if (snapshot) {
+        const img = new Image();
+        img.onload = () => ctx.drawImage(img, 0, 0, r.width, r.height);
+        img.src = snapshot;
+      }
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Per-stroke last point. Keyed by `peerId:strokeId` so concurrent strokes
+    // from different senders don't connect into each other.
+    const strokeTails = new Map();
+
+    function paintPoint({ peerId, strokeId, color, x, y, isStart }) {
+      const r = canvas.getBoundingClientRect();
+      const px = x * r.width;
+      const py = y * r.height;
+      const key = `${peerId}:${strokeId}`;
+      const tail = strokeTails.get(key);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = state.brushSize;
+      if (isStart || !tail) {
+        ctx.beginPath();
+        ctx.arc(px, py, state.brushSize / 2, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(tail.x, tail.y);
+        ctx.lineTo(px, py);
+        ctx.stroke();
+      }
+      strokeTails.set(key, { x: px, y: py });
+    }
+
+    function endStroke(peerId, strokeId) {
+      strokeTails.delete(`${peerId}:${strokeId}`);
+    }
+
+    let activeStroke = null;
+
+    function pointerToNorm(ev) {
+      const r = canvas.getBoundingClientRect();
+      return {
+        x: (ev.clientX - r.left) / r.width,
+        y: (ev.clientY - r.top) / r.height,
+      };
+    }
+
+    canvas.addEventListener('pointerdown', (ev) => {
+      ev.preventDefault();
+      canvas.setPointerCapture(ev.pointerId);
+      activeStroke = {
+        id: `${myId.slice(0, 8)}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        pointerId: ev.pointerId,
+      };
+      const { x, y } = pointerToNorm(ev);
+      paintPoint({
+        peerId: myId, strokeId: activeStroke.id,
+        color: myColor, x, y, isStart: true,
+      });
+      broadcastPoint({ strokeId: activeStroke.id, x, y, isStart: true });
+    });
+
+    canvas.addEventListener('pointermove', (ev) => {
+      if (!activeStroke || ev.pointerId !== activeStroke.pointerId) return;
+      const { x, y } = pointerToNorm(ev);
+      paintPoint({
+        peerId: myId, strokeId: activeStroke.id,
+        color: myColor, x, y, isStart: false,
+      });
+      broadcastPoint({ strokeId: activeStroke.id, x, y, isStart: false });
+    });
+
+    function finishLocalStroke(ev) {
+      if (!activeStroke || ev.pointerId !== activeStroke.pointerId) return;
+      const id = activeStroke.id;
+      endStroke(myId, id);
+      activeStroke = null;
+      broadcastStrokeEnd(id);
+    }
+
+    canvas.addEventListener('pointerup', finishLocalStroke);
+    canvas.addEventListener('pointercancel', finishLocalStroke);
+
+    // ============================================================
+    // Toast
+    // ============================================================
+    function showToast(message) {
+      let toast = document.getElementById('toast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        toast.className = 'toast';
+        toast.setAttribute('role', 'status');
+        toast.setAttribute('aria-live', 'polite');
+        document.body.appendChild(toast);
+      }
+      toast.textContent = message;
+      toast.classList.add('visible');
+      clearTimeout(toast._timeout);
+      toast._timeout = setTimeout(() => toast.classList.remove('visible'), 2200);
+    }
+
+    // ============================================================
+    // SDP compress / frame split
+    // ============================================================
+    function bytesToBase64Url(bytes) {
+      let bin = '';
+      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+      return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    function base64UrlToBytes(s) {
+      s = s.replace(/-/g, '+').replace(/_/g, '/');
+      while (s.length % 4) s += '=';
+      const bin = atob(s);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return bytes;
+    }
+
+    async function compressString(str) {
+      const stream = new Blob([str]).stream()
+        .pipeThrough(new CompressionStream('deflate-raw'));
+      const buf = await new Response(stream).arrayBuffer();
+      return bytesToBase64Url(new Uint8Array(buf));
+    }
+
+    async function decompressToString(b64) {
+      const bytes = base64UrlToBytes(b64);
+      const stream = new Blob([bytes]).stream()
+        .pipeThrough(new DecompressionStream('deflate-raw'));
+      return await new Response(stream).text();
+    }
+
+    const TOTAL_FRAMES = 3;
+
+    function splitFrames(payload, role, total = TOTAL_FRAMES) {
+      const len = payload.length;
+      const chunkSize = Math.ceil(len / total);
+      const frames = [];
+      for (let i = 0; i < total; i++) {
+        const chunk = payload.slice(i * chunkSize, (i + 1) * chunkSize);
+        frames.push(`SC:${role}${i + 1}/${total}:${chunk}`);
+      }
+      return frames;
+    }
+
+    function parseFrame(s) {
+      const m = /^SC:([OA])(\d+)\/(\d+):(.+)$/.exec(s);
+      if (!m) return null;
+      return {
+        role: m[1],
+        idx: parseInt(m[2], 10),
+        total: parseInt(m[3], 10),
+        payload: m[4],
+      };
+    }
+
+    // ============================================================
+    // WebRTC
+    // ============================================================
+    const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
+
+    function createPeerConnection() {
+      return new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    }
+
+    function waitForIceComplete(pc) {
+      if (pc.iceGatheringState === 'complete') return Promise.resolve();
+      return new Promise((resolve) => {
+        const onChange = () => {
+          if (pc.iceGatheringState === 'complete') {
+            pc.removeEventListener('icegatheringstatechange', onChange);
+            resolve();
+          }
+        };
+        pc.addEventListener('icegatheringstatechange', onChange);
+      });
+    }
+
+    function setupDataChannel(dc) {
+      dc.binaryType = 'arraybuffer';
+      dc.addEventListener('open', () => {
+        dc.send(JSON.stringify({ type: 'hello', id: myId, color: myColor }));
+      });
+      dc.addEventListener('message', (ev) => handleIncomingMessage(dc, ev.data));
+      dc.addEventListener('close', () => onDataChannelClose(dc));
+      dc.addEventListener('error', () => onDataChannelClose(dc));
+    }
+
+    function handleIncomingMessage(dc, raw) {
+      let msg;
+      try { msg = JSON.parse(raw); } catch (_) { return; }
+      if (!msg || typeof msg !== 'object') return;
+
+      if (msg.type === 'hello') {
+        const conn = findConnByDc(dc) || promotePendingToConnection(dc, msg);
+        if (conn) {
+          conn.id = msg.id;
+          conn.color = msg.color;
+          updatePeerCount();
+          maybeCloseModal();
+        }
+        return;
+      }
+
+      const conn = findConnByDc(dc);
+      if (!conn) return;
+
+      if (msg.type === 'point') {
+        paintPoint({
+          peerId: conn.id,
+          strokeId: msg.strokeId,
+          color: conn.color || myColor,
+          x: msg.x, y: msg.y,
+          isStart: !!msg.isStart,
+        });
+      } else if (msg.type === 'stroke-end') {
+        endStroke(conn.id, msg.strokeId);
+      }
+    }
+
+    function findConnByDc(dc) {
+      for (const conn of state.connections.values()) {
+        if (conn.dc === dc) return conn;
+      }
+      return null;
+    }
+
+    function promotePendingToConnection(dc, helloMsg) {
+      const pc = state.pending ? state.pending.pc : null;
+      const conn = { id: helloMsg.id, color: helloMsg.color, pc, dc };
+      state.connections.set(helloMsg.id, conn);
+      if (state.pending && state.pending.pc === pc) {
+        state.pending = null;
+      }
+      state.view = 'connected';
+      return conn;
+    }
+
+    function onDataChannelClose(dc) {
+      const conn = findConnByDc(dc);
+      if (!conn) return;
+      state.connections.delete(conn.id);
+      try { conn.pc && conn.pc.close(); } catch (_) {}
+      updatePeerCount();
+      if (state.connections.size === 0) state.view = 'idle';
+    }
+
+    function broadcastPoint({ strokeId, x, y, isStart }) {
+      if (state.connections.size === 0) return;
+      const msg = JSON.stringify({ type: 'point', strokeId, x, y, isStart });
+      for (const conn of state.connections.values()) {
+        if (conn.dc && conn.dc.readyState === 'open') {
+          try { conn.dc.send(msg); } catch (_) {}
+        }
+      }
+    }
+
+    function broadcastStrokeEnd(strokeId) {
+      if (state.connections.size === 0) return;
+      const msg = JSON.stringify({ type: 'stroke-end', strokeId });
+      for (const conn of state.connections.values()) {
+        if (conn.dc && conn.dc.readyState === 'open') {
+          try { conn.dc.send(msg); } catch (_) {}
+        }
+      }
+    }
+
+    // ============================================================
+    // Host flow
+    // ============================================================
+    async function startHostFlow() {
+      if (state.view !== 'idle') {
+        showToast('Already in a session');
+        return;
+      }
+      const pc = createPeerConnection();
+      const dc = pc.createDataChannel('paint', { ordered: true });
+      setupDataChannel(dc);
+
+      try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        await waitForIceComplete(pc);
+      } catch (err) {
+        showToast('Could not create offer: ' + err.message);
+        try { pc.close(); } catch (_) {}
+        return;
+      }
+
+      const compressed = await compressString(pc.localDescription.sdp);
+      const offerFrames = splitFrames(compressed, 'O');
+
+      state.pending = {
+        role: 'host',
+        pc, dc,
+        offerFrames,
+        answerReceived: [null, null, null],
+        currentFrame: 0,
+      };
+      state.view = 'hosting';
+      state.step = 'share-link';
+      openModal();
+    }
+
+    async function applyAnswerToPending(payloadStr) {
+      try {
+        const sdp = await decompressToString(payloadStr);
+        await state.pending.pc.setRemoteDescription({ type: 'answer', sdp });
+        // Wait briefly for the data channel to open; if it does, the
+        // 'open' handler + hello exchange closes the modal.
+      } catch (err) {
+        showModalError('Could not apply answer: ' + err.message);
+      }
+    }
+
+    // ============================================================
+    // Joiner flow
+    // ============================================================
+    function startJoinFlow() {
+      if (state.view !== 'idle') {
+        showToast('Already in a session');
+        return;
+      }
+      state.pending = {
+        role: 'join',
+        pc: null, dc: null,
+        offerReceived: [null, null, null],
+        answerFrames: null,
+        currentFrame: 0,
+      };
+      state.view = 'joining';
+      state.step = 'scan-offer';
+      openModal();
+    }
+
+    async function buildAnswerFromOfferFrames(frames) {
+      const payload = frames.join('');
+      let sdp;
+      try { sdp = await decompressToString(payload); }
+      catch (err) {
+        showModalError('Could not decode offer: ' + err.message);
+        return false;
+      }
+      const pc = createPeerConnection();
+      pc.addEventListener('datachannel', (ev) => {
+        state.pending && (state.pending.dc = ev.channel);
+        setupDataChannel(ev.channel);
+      });
+      try {
+        await pc.setRemoteDescription({ type: 'offer', sdp });
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        await waitForIceComplete(pc);
+      } catch (err) {
+        showModalError('Could not build answer: ' + err.message);
+        try { pc.close(); } catch (_) {}
+        return false;
+      }
+      const compressed = await compressString(pc.localDescription.sdp);
+      const answerFrames = splitFrames(compressed, 'A');
+      state.pending.pc = pc;
+      state.pending.answerFrames = answerFrames;
+      state.pending.currentFrame = 0;
+      state.step = 'show-answer';
+      renderModal();
+      return true;
+    }
+
+    // ============================================================
+    // Modal rendering
+    // ============================================================
+    let activeScanner = null;
+
+    function openModal() {
+      modal.showModal();
+      renderModal();
+    }
+
+    function closeModalCleanup() {
+      stopScanner();
+    }
+
+    function maybeCloseModal() {
+      if (state.view === 'connected') {
+        closeModalCleanup();
+        try { modal.close(); } catch (_) {}
+        showToast('Connected!');
+      }
+    }
+
+    modal.addEventListener('close', () => {
+      closeModalCleanup();
+      if (state.pending) {
+        try { state.pending.pc && state.pending.pc.close(); } catch (_) {}
+        state.pending = null;
+        if (state.connections.size === 0) state.view = 'idle';
+      }
+    });
+
+    function showModalError(message) {
+      let el = modalBody.querySelector('.modal-error');
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'modal-error';
+        modalBody.appendChild(el);
+      }
+      el.textContent = message;
+      el.classList.add('visible');
+    }
+
+    function stopScanner() {
+      if (activeScanner) {
+        try { activeScanner.stop(); } catch (_) {}
+        try { activeScanner.destroy(); } catch (_) {}
+        activeScanner = null;
+      }
+    }
+
+    function renderQR(text, container) {
+      if (typeof qrcode === 'undefined') {
+        container.textContent = 'QR library failed to load';
+        return;
+      }
+      // typeNumber=0 picks the smallest fitting; ECC level L for max capacity.
+      const qr = qrcode(0, 'L');
+      qr.addData(text);
+      qr.make();
+      const cellSize = 6;
+      const margin = 2;
+      container.innerHTML = qr.createSvgTag({ cellSize, margin });
+      const svg = container.querySelector('svg');
+      if (svg) {
+        const moduleCount = qr.getModuleCount();
+        const total = (moduleCount + margin * 2) * cellSize;
+        svg.removeAttribute('width');
+        svg.removeAttribute('height');
+        svg.setAttribute('viewBox', `0 0 ${total} ${total}`);
+        svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+      }
+    }
+
+    function pipsHTML(received, total) {
+      let s = '<span class="frame-pips" aria-hidden="true">';
+      for (let i = 0; i < total; i++) {
+        s += `<span class="frame-pip${received[i] ? ' received' : ''}"></span>`;
+      }
+      s += '</span>';
+      return s;
+    }
+
+    async function startScanner(videoEl, onPayload) {
+      stopScanner();
+      // QrScanner is loaded as an ES module so it may arrive after this inline
+      // classic script runs. If it's not ready yet, wait for the ready event.
+      if (typeof QrScanner === 'undefined') {
+        await new Promise((resolve) => {
+          const onReady = () => {
+            window.removeEventListener('qr-scanner-ready', onReady);
+            resolve();
+          };
+          window.addEventListener('qr-scanner-ready', onReady);
+          if (typeof QrScanner !== 'undefined') onReady();
+        });
+      }
+      if (typeof QrScanner === 'undefined') {
+        showModalError('QR scanner failed to load');
+        return;
+      }
+      try {
+        const hasCam = await QrScanner.hasCamera();
+        if (!hasCam) {
+          showModalError('No camera found on this device');
+          return;
+        }
+      } catch (_) {}
+
+      activeScanner = new QrScanner(
+        videoEl,
+        (result) => {
+          const text = (result && typeof result === 'object' && 'data' in result)
+            ? result.data : result;
+          if (typeof text !== 'string') return;
+          onPayload(text);
+        },
+        {
+          highlightScanRegion: true,
+          highlightCodeOutline: false,
+          maxScansPerSecond: 10,
+          preferredCamera: 'environment',
+          returnDetailedScanResult: true,
+        }
+      );
+      try {
+        await activeScanner.start();
+      } catch (err) {
+        showModalError('Camera error: ' + err.message);
+        activeScanner = null;
+      }
+    }
+
+    function renderModal() {
+      stopScanner();
+      modalBody.innerHTML = '';
+      if (state.view === 'hosting') renderHostStep();
+      else if (state.view === 'joining') renderJoinerStep();
+    }
+
+    // --- Host steps ---
+
+    function renderHostStep() {
+      if (state.step === 'share-link') return renderHostShareLink();
+      if (state.step === 'show-offer') return renderHostShowOffer();
+      if (state.step === 'scan-answer') return renderHostScanAnswer();
+    }
+
+    function renderHostShareLink() {
+      const url = new URL(window.location.href);
+      url.hash = 'join';
+      const link = url.toString();
+
+      modalBody.innerHTML = `
+        <h2 id="modal-title">Step 1 of 3 — Share the link</h2>
+        <p class="step-meta">Send this URL to the joining device, or have them scan this QR.</p>
+        <div class="qr-stage">
+          <div class="qr-box" id="link-qr"></div>
+          <div class="frame-counter" style="word-break: break-all; text-align: center; max-width: 320px;">${link}</div>
+        </div>
+        <div class="modal-actions">
+          <button id="cancel-host">Cancel</button>
+          <div class="right">
+            <button id="copy-link">Copy link</button>
+            <button id="next-step" class="primary" autofocus>Next: show offer</button>
+          </div>
+        </div>
+      `;
+      renderQR(link, modalBody.querySelector('#link-qr'));
+      modalBody.querySelector('#cancel-host').addEventListener('click', () => modal.close());
+      modalBody.querySelector('#copy-link').addEventListener('click', async () => {
+        if (!navigator.clipboard) { showToast('Clipboard API unavailable'); return; }
+        try {
+          await navigator.clipboard.writeText(link);
+          showToast('Link copied');
+        } catch (_) {
+          showToast('Could not copy');
+        }
+      });
+      modalBody.querySelector('#next-step').addEventListener('click', () => {
+        state.step = 'show-offer';
+        state.pending.currentFrame = 0;
+        renderModal();
+      });
+    }
+
+    function renderHostShowOffer() {
+      const total = state.pending.offerFrames.length;
+      const idx = state.pending.currentFrame;
+      modalBody.innerHTML = `
+        <h2 id="modal-title">Step 2 of 3 — Show offer</h2>
+        <p class="step-meta">Have the joiner scan all ${total} frames with their camera.</p>
+        <div class="qr-stage">
+          <div class="qr-box" id="offer-qr"></div>
+          <div class="frame-counter">Frame ${idx + 1} of ${total}</div>
+        </div>
+        <div class="modal-actions">
+          <button id="prev-frame" ${idx === 0 ? 'disabled' : ''}>Prev</button>
+          <div class="right">
+            <button id="next-frame" ${idx >= total - 1 ? 'disabled' : ''}>Next</button>
+            <button id="next-step" class="primary" autofocus>Next: scan answer</button>
+          </div>
+        </div>
+      `;
+      renderQR(state.pending.offerFrames[idx], modalBody.querySelector('#offer-qr'));
+      modalBody.querySelector('#prev-frame').addEventListener('click', () => {
+        if (state.pending.currentFrame > 0) {
+          state.pending.currentFrame--;
+          renderModal();
+        }
+      });
+      modalBody.querySelector('#next-frame').addEventListener('click', () => {
+        if (state.pending.currentFrame < total - 1) {
+          state.pending.currentFrame++;
+          renderModal();
+        }
+      });
+      modalBody.querySelector('#next-step').addEventListener('click', () => {
+        state.step = 'scan-answer';
+        renderModal();
+      });
+    }
+
+    async function renderHostScanAnswer() {
+      const total = TOTAL_FRAMES;
+      modalBody.innerHTML = `
+        <h2 id="modal-title">Step 3 of 3 — Scan the answer</h2>
+        <p class="step-meta">Point your camera at each of the joiner's ${total} answer QRs.</p>
+        <div class="video-stage"><video id="cam" playsinline></video></div>
+        <p class="step-meta">Frames received: <span id="frame-status">0 / ${total}</span><span id="frame-pips-host">${pipsHTML(state.pending.answerReceived, total)}</span></p>
+        <div class="modal-actions">
+          <button id="back">Back</button>
+          <div class="right">
+            <button id="cancel-host">Cancel</button>
+          </div>
+        </div>
+        <div class="modal-error"></div>
+      `;
+      modalBody.querySelector('#back').addEventListener('click', () => {
+        state.step = 'show-offer';
+        renderModal();
+      });
+      modalBody.querySelector('#cancel-host').addEventListener('click', () => modal.close());
+
+      const status = modalBody.querySelector('#frame-status');
+      const pipWrap = modalBody.querySelector('#frame-pips-host');
+      const updateStatus = () => {
+        const got = state.pending.answerReceived.filter(Boolean).length;
+        status.textContent = `${got} / ${total}`;
+        pipWrap.innerHTML = pipsHTML(state.pending.answerReceived, total);
+      };
+
+      const video = modalBody.querySelector('#cam');
+      await startScanner(video, async (text) => {
+        const frame = parseFrame(text);
+        if (!frame || frame.role !== 'A') return;
+        const i = frame.idx - 1;
+        if (i < 0 || i >= total) return;
+        if (state.pending.answerReceived[i]) return;
+        state.pending.answerReceived[i] = frame.payload;
+        updateStatus();
+        if (state.pending.answerReceived.every(Boolean)) {
+          stopScanner();
+          await applyAnswerToPending(state.pending.answerReceived.join(''));
+        }
+      });
+    }
+
+    // --- Joiner steps ---
+
+    function renderJoinerStep() {
+      if (state.step === 'scan-offer') return renderJoinerScanOffer();
+      if (state.step === 'show-answer') return renderJoinerShowAnswer();
+    }
+
+    async function renderJoinerScanOffer() {
+      const total = TOTAL_FRAMES;
+      modalBody.innerHTML = `
+        <h2 id="modal-title">Step 1 of 2 — Scan the host's offer</h2>
+        <p class="step-meta">Point your camera at each of the host's ${total} offer QRs.</p>
+        <div class="video-stage"><video id="cam" playsinline></video></div>
+        <p class="step-meta">Frames received: <span id="frame-status">0 / ${total}</span><span id="frame-pips-join">${pipsHTML(state.pending.offerReceived, total)}</span></p>
+        <div class="modal-actions">
+          <button id="cancel-join">Cancel</button>
+          <div class="right"></div>
+        </div>
+        <div class="modal-error"></div>
+      `;
+      modalBody.querySelector('#cancel-join').addEventListener('click', () => modal.close());
+
+      const status = modalBody.querySelector('#frame-status');
+      const pipWrap = modalBody.querySelector('#frame-pips-join');
+      const updateStatus = () => {
+        const got = state.pending.offerReceived.filter(Boolean).length;
+        status.textContent = `${got} / ${total}`;
+        pipWrap.innerHTML = pipsHTML(state.pending.offerReceived, total);
+      };
+
+      const video = modalBody.querySelector('#cam');
+      await startScanner(video, async (text) => {
+        const frame = parseFrame(text);
+        if (!frame || frame.role !== 'O') return;
+        const i = frame.idx - 1;
+        if (i < 0 || i >= total) return;
+        if (state.pending.offerReceived[i]) return;
+        state.pending.offerReceived[i] = frame.payload;
+        updateStatus();
+        if (state.pending.offerReceived.every(Boolean)) {
+          stopScanner();
+          await buildAnswerFromOfferFrames(state.pending.offerReceived);
+        }
+      });
+    }
+
+    function renderJoinerShowAnswer() {
+      const total = state.pending.answerFrames.length;
+      const idx = state.pending.currentFrame;
+      modalBody.innerHTML = `
+        <h2 id="modal-title">Step 2 of 2 — Show your answer</h2>
+        <p class="step-meta">Have the host scan all ${total} answer frames.</p>
+        <div class="qr-stage">
+          <div class="qr-box" id="answer-qr"></div>
+          <div class="frame-counter">Frame ${idx + 1} of ${total}</div>
+        </div>
+        <div class="modal-actions">
+          <button id="prev-frame" ${idx === 0 ? 'disabled' : ''}>Prev</button>
+          <div class="right">
+            <button id="next-frame" ${idx >= total - 1 ? 'disabled' : ''}>Next</button>
+            <button id="cancel-join">Cancel</button>
+          </div>
+        </div>
+        <div class="modal-error"></div>
+      `;
+      renderQR(state.pending.answerFrames[idx], modalBody.querySelector('#answer-qr'));
+      modalBody.querySelector('#prev-frame').addEventListener('click', () => {
+        if (state.pending.currentFrame > 0) {
+          state.pending.currentFrame--;
+          renderModal();
+        }
+      });
+      modalBody.querySelector('#next-frame').addEventListener('click', () => {
+        if (state.pending.currentFrame < total - 1) {
+          state.pending.currentFrame++;
+          renderModal();
+        }
+      });
+      modalBody.querySelector('#cancel-join').addEventListener('click', () => modal.close());
+    }
+
+    // ============================================================
+    // Status bar
+    // ============================================================
+    function updatePeerCount() {
+      const n = state.connections.size;
+      peerCountEl.textContent = n === 0 ? 'Solo' : `${n} connected`;
+    }
+
+    // ============================================================
+    // Wire up buttons + deep link
+    // ============================================================
+    shareBtn.addEventListener('click', () => startHostFlow());
+    joinBtn.addEventListener('click', () => startJoinFlow());
+
+    if (window.location.hash === '#join') {
+      requestAnimationFrame(() => startJoinFlow());
+    }
+
+    // Expose minimal hooks for manual debugging.
+    window._sharedCanvas = { state, paintPoint, splitFrames, parseFrame, compressString, decompressToString };
+  </script>
+</body>
+</html>
