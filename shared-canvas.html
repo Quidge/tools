@@ -322,16 +322,12 @@
     }
   </style>
 
-  <script defer src="https://cdn.jsdelivr.net/npm/qrcode-generator@2.0.4/dist/qrcode.js"></script>
-  <script type="module">
-    // qr-scanner@1.4.x loads its worker via dynamic import('./qr-scanner-worker.min.js').
-    // Loading the UMD bundle as a classic <script> from a cross-origin CDN
-    // breaks that import (base URL becomes about:blank), so we import the ESM
-    // build instead — that gives the dynamic import a real CDN base URL.
-    import QrScanner from 'https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.min.js';
-    window.QrScanner = QrScanner;
-    window.dispatchEvent(new Event('qr-scanner-ready'));
-  </script>
+  <!--
+    Both QR libraries are loaded lazily by the inline script on first use,
+    not from the head. Eagerly fetching them on page load delayed time-to-
+    interactive on slow mobile networks: the user could tap "Share canvas"
+    before the inline script's handlers were attached, and nothing happened.
+  -->
 </head>
 <body>
   <header class="toolbar">
@@ -851,8 +847,36 @@
       }
     }
 
-    function renderQR(text, container) {
-      if (typeof qrcode === 'undefined') {
+    // Lazy-loaded library handles. Both libraries are only used inside the
+    // share/join modal flow, so we don't pay their download cost on initial
+    // page load. The first call to render or scan kicks off the fetch.
+    let qrcodeLibPromise = null;
+    let qrScannerLibPromise = null;
+
+    function loadQrcodeLib() {
+      if (qrcodeLibPromise) return qrcodeLibPromise;
+      qrcodeLibPromise = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@2.0.4/dist/qrcode.js';
+        s.onload = () => resolve(window.qrcode);
+        s.onerror = () => reject(new Error('qrcode-generator load failed'));
+        document.head.appendChild(s);
+      });
+      return qrcodeLibPromise;
+    }
+
+    function loadQrScannerLib() {
+      if (qrScannerLibPromise) return qrScannerLibPromise;
+      // ESM import so qr-scanner@1.4.x can resolve its worker against the CDN.
+      qrScannerLibPromise = import('https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.min.js')
+        .then((mod) => mod.default);
+      return qrScannerLibPromise;
+    }
+
+    async function renderQR(text, container) {
+      let qrcode;
+      try { qrcode = await loadQrcodeLib(); }
+      catch (_) {
         container.textContent = 'QR library failed to load';
         return;
       }
@@ -885,19 +909,9 @@
 
     async function startScanner(videoEl, onPayload) {
       stopScanner();
-      // QrScanner is loaded as an ES module so it may arrive after this inline
-      // classic script runs. If it's not ready yet, wait for the ready event.
-      if (typeof QrScanner === 'undefined') {
-        await new Promise((resolve) => {
-          const onReady = () => {
-            window.removeEventListener('qr-scanner-ready', onReady);
-            resolve();
-          };
-          window.addEventListener('qr-scanner-ready', onReady);
-          if (typeof QrScanner !== 'undefined') onReady();
-        });
-      }
-      if (typeof QrScanner === 'undefined') {
+      let QrScanner;
+      try { QrScanner = await loadQrScannerLib(); }
+      catch (_) {
         showModalError('QR scanner failed to load');
         return;
       }
