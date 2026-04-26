@@ -60,7 +60,7 @@ Use this pattern when vanilla JS is insufficient and the tool needs a pinned ext
 
 Default to classic script tags from jsdelivr/cdnjs with `defer`. Always pin an exact version (`@x.y.z`) instead of `@latest` or a versionless URL.
 
-Use `defer` on script tags so the CDN fetch doesn't block rendering. A deferred script downloads in parallel with HTML parsing and executes after the DOM is parsed — but **before** the inline `<script>` at end of `<body>` runs. This means the library is available by the time event handlers fire, with zero render-blocking cost.
+Use `defer` on script tags so the CDN fetch doesn't block rendering. A deferred script downloads in parallel with HTML parsing and executes after the DOM is parsed — **after** any inline `<script>` at end of `<body>` has already run. The library is available by the time event handlers fire, with zero render-blocking cost.
 
 Omit `defer` only if the inline script calls the library at top-level during initialization (not inside event handlers). This is rare — most tools reference libraries from user-triggered callbacks.
 
