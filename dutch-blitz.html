@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Round-based scorekeeper for the card game Dutch Blitz. Supports 2-8 players across the Classic Green box and Blue Expansion decks, with running totals and per-round scoring.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22%232d5ed4%22%3E%3Crect%20x%3D%223%22%20y%3D%2220%22%20width%3D%2218%22%20height%3D%222%22%20rx%3D%22.5%22/%3E%3Crect%20x%3D%229%22%20y%3D%226%22%20width%3D%226%22%20height%3D%2214%22%20rx%3D%22.5%22/%3E%3Cpath%20d%3D%22M15%209%20L21%209%20L21%2013%20L18%2013%20L18%2011%20L15%2011%20Z%22/%3E%3Cpath%20d%3D%22M3%204%20L11%207%20L11%209%20L9%209%20L9%208%20L3%206%20Z%22/%3E%3C/svg%3E">
+  <title>Dutch Blitz Scorekeeper</title>
+  <style>
+    :root {
+      --page-max-width: 1100px;
+      --page-padding: 24px;
+      --page-padding-mobile: 16px;
+
+      --space-1: 0.25rem;
+      --space-2: 0.5rem;
+      --space-3: 0.75rem;
+      --space-4: 1rem;
+      --space-5: 1.25rem;
+      --space-6: 1.5rem;
+      --space-8: 2rem;
+
+      --text-sm: 0.875rem;
+      --text-base: 1rem;
+      --text-lg: 1.125rem;
+      --text-xl: 1.25rem;
+      --text-2xl: 1.5rem;
+      --text-3xl: 2rem;
+
+      --line-heading: 1.25;
+      --line-ui: 1.4;
+      --line-copy: 1.5;
+      --control-min-height: 44px;
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 12px;
+      --transition-fast: 0.15s;
+
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --hover: #f1f3f4;
+      --border: #dadce0;
+      --text-muted: #9aa0a6;
+      --text-secondary: #5f6368;
+      --text-primary: #202124;
+      --toast-bg: #323232;
+
+      --accent-light: #e8f0fe;
+      --accent: #2d5ed4;
+      --accent-hover: #1765cc;
+
+      --error-bg: #fce8e6;
+      --error: #bb061e;
+      --success-bg: #e6f4ea;
+      --success: #00763a;
+      --warning-bg: #fef7e0;
+      --warning: #996700;
+
+      /* Dutch Blitz deck colors. Original (green box) deck colors first, then
+         blue expansion alternates for the same four symbols. */
+      --db-green:  oklch(0.62 0.16 145);
+      --db-red:    oklch(0.55 0.20 27);
+      --db-blue:   oklch(0.55 0.17 250);
+      --db-yellow: oklch(0.82 0.16 92);
+      --db-orange: oklch(0.70 0.17 55);
+      --db-purple: oklch(0.50 0.20 305);
+      --db-pink:   oklch(0.72 0.17 5);
+      --db-teal:   oklch(0.65 0.13 195);
+    }
+
+    @supports (color: oklch(0 0 0)) {
+      :root {
+        --bg: oklch(0.975 0.003 264);
+        --surface: oklch(1 0 0);
+        --hover: oklch(0.955 0.003 264);
+        --border: oklch(0.88 0.005 264);
+        --text-muted: oklch(0.69 0.01 264);
+        --text-secondary: oklch(0.50 0.01 264);
+        --text-primary: oklch(0.23 0.005 264);
+        --toast-bg: oklch(0.27 0 0);
+
+        --accent-light: oklch(0.93 0.04 264);
+        --accent: oklch(0.52 0.19 264);
+        --accent-hover: oklch(0.495 0.18 264);
+
+        --error-bg: oklch(0.94 0.03 25);
+        --error: oklch(0.50 0.2 25);
+        --success-bg: oklch(0.94 0.04 155);
+        --success: oklch(0.49 0.14 155);
+        --warning-bg: oklch(0.94 0.05 85);
+        --warning: oklch(0.55 0.15 85);
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      font-size: var(--text-base);
+      background: var(--bg);
+      color: var(--text-primary);
+      line-height: var(--line-copy);
+    }
+
+    button, input, select, textarea { font: inherit; }
+
+    #app {
+      max-width: var(--page-max-width);
+      margin: 0 auto;
+      padding: var(--page-padding);
+    }
+
+    h1 {
+      font-size: var(--text-2xl);
+      line-height: var(--line-heading);
+      margin-bottom: var(--space-2);
+    }
+
+    h2 {
+      font-size: var(--text-xl);
+      line-height: var(--line-heading);
+      margin-bottom: var(--space-3);
+    }
+
+    h3 {
+      font-size: var(--text-lg);
+      line-height: var(--line-heading);
+      margin-bottom: var(--space-3);
+    }
+
+    p.description {
+      color: var(--text-secondary);
+      font-size: var(--text-base);
+      margin-bottom: var(--space-6);
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-4);
+      margin-bottom: var(--space-4);
+    }
+
+    .field { margin-bottom: var(--space-4); }
+    .field:last-child { margin-bottom: 0; }
+
+    label {
+      display: block;
+      margin-bottom: var(--space-2);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      line-height: var(--line-ui);
+    }
+
+    .hint {
+      margin-top: var(--space-2);
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+
+    .actions {
+      display: flex;
+      gap: var(--space-2);
+      flex-wrap: wrap;
+    }
+
+    input:is([type="text"], [type="number"]),
+    select {
+      width: 100%;
+      min-height: var(--control-min-height);
+      padding: var(--space-2) var(--space-3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-base);
+      line-height: var(--line-ui);
+      background: var(--surface);
+      color: var(--text-primary);
+      transition: border-color var(--transition-fast), background var(--transition-fast);
+    }
+
+    input:is([type="text"], [type="number"]):focus-visible,
+    select:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -1px;
+      border-color: var(--accent);
+    }
+
+    button {
+      min-height: var(--control-min-height);
+      padding: var(--space-2) var(--space-4);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: var(--text-base);
+      font-weight: 500;
+      line-height: var(--line-ui);
+      color: var(--text-primary);
+      transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+    }
+    button:hover:not(:disabled) { background: var(--hover); }
+    button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-color: var(--accent); }
+    button:disabled { color: var(--text-muted); cursor: not-allowed; opacity: 0.5; }
+
+    button.primary {
+      background: var(--accent);
+      color: var(--surface);
+      border-color: var(--accent);
+    }
+    button.primary:hover:not(:disabled) { background: var(--accent-hover); }
+
+    button.danger {
+      color: var(--error);
+      border-color: var(--border);
+    }
+    button.danger:hover:not(:disabled) {
+      background: var(--error-bg);
+    }
+
+    button.icon-only {
+      min-width: var(--control-min-height);
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .view { display: none; }
+    .view.visible { display: block; }
+
+    .player-config {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+    }
+
+    .player-row {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: var(--space-3);
+      align-items: center;
+      padding: var(--space-3);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+    }
+
+    .player-row .name-row {
+      display: flex;
+      gap: var(--space-2);
+      align-items: stretch;
+    }
+
+    .player-row .name-input {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: var(--space-2);
+      margin-top: var(--space-2);
+    }
+
+    .preset-tile {
+      aspect-ratio: 1 / 1;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-2);
+      transition: border-color var(--transition-fast), transform var(--transition-fast);
+      min-height: 44px;
+      min-width: 44px;
+    }
+    .preset-tile:hover:not(:disabled) { border-color: var(--accent); }
+    .preset-tile.selected {
+      border-color: var(--accent);
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+    .preset-tile:disabled { opacity: 0.3; cursor: not-allowed; }
+    .preset-tile svg { width: 100%; height: 100%; display: block; }
+
+    .player-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border: 2px solid var(--border);
+      background: var(--surface);
+    }
+    .player-avatar svg { width: 70%; height: 70%; }
+    .player-avatar.sm { width: 28px; height: 28px; border-width: 1.5px; }
+    .player-avatar.lg { width: 56px; height: 56px; }
+
+    .game-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: var(--space-3);
+      flex-wrap: wrap;
+      margin-bottom: var(--space-4);
+    }
+    .game-header .meta {
+      color: var(--text-secondary);
+      font-size: var(--text-sm);
+    }
+
+    .scoreboard-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+    }
+
+    table.scoreboard {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 100%;
+    }
+
+    .scoreboard th, .scoreboard td {
+      padding: var(--space-3);
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .scoreboard tr:last-child td { border-bottom: none; }
+
+    .scoreboard th.round-col, .scoreboard td.round-col {
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-secondary);
+      min-width: 90px;
+      border-right: 1px solid var(--border);
+      background: var(--bg);
+      position: sticky;
+      left: 0;
+      z-index: 1;
+    }
+
+    .scoreboard thead th {
+      background: var(--bg);
+      border-bottom: 2px solid var(--border);
+    }
+
+    .player-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-1);
+      min-width: 110px;
+    }
+    .player-header .player-name {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--text-primary);
+      max-width: 110px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .player-header .player-total {
+      font-size: var(--text-3xl);
+      font-weight: 700;
+      line-height: 1;
+      margin-top: var(--space-1);
+    }
+    .player-header .player-target {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+
+    .cell-running {
+      font-size: var(--text-xl);
+      font-weight: 600;
+      line-height: 1.1;
+    }
+    .cell-delta {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+    .cell-delta.positive { color: var(--success); }
+    .cell-delta.negative { color: var(--error); }
+    .cell-empty { color: var(--text-secondary); }
+
+    .round-actions {
+      display: flex;
+      gap: var(--space-1);
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .round-label { font-weight: 600; }
+
+    .winner-banner {
+      background: var(--success-bg);
+      color: var(--success);
+      padding: var(--space-3) var(--space-4);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--space-4);
+      font-weight: 600;
+    }
+
+    dialog.modal {
+      border: none;
+      border-radius: var(--radius-lg);
+      padding: var(--space-5);
+      max-width: 560px;
+      width: 92%;
+      margin: auto;
+      background: var(--surface);
+      color: var(--text-primary);
+    }
+    dialog.modal::backdrop { background: rgba(0,0,0,0.5); }
+    dialog.modal .modal-actions {
+      display: flex;
+      gap: var(--space-2);
+      justify-content: flex-end;
+      margin-top: var(--space-4);
+      flex-wrap: wrap;
+    }
+
+    .round-input-grid {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+      max-height: 60vh;
+      overflow-y: auto;
+      padding-right: var(--space-1);
+    }
+    .round-input-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: var(--space-3);
+      align-items: center;
+      padding: var(--space-3);
+      background: var(--bg);
+      border-radius: var(--radius-md);
+    }
+    .round-input-row .who {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      min-width: 0;
+    }
+    .round-input-row .who-name {
+      font-weight: 600;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .round-input-row .score-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: var(--space-1);
+    }
+    .round-input-row .score-input {
+      width: 96px;
+      text-align: center;
+      font-weight: 600;
+      font-size: var(--text-lg);
+    }
+    .round-input-row .score-input[aria-invalid="true"] {
+      border-color: var(--error);
+    }
+    .round-input-row .score-error {
+      color: var(--error);
+      font-size: var(--text-sm);
+      text-align: right;
+      max-width: 200px;
+      line-height: 1.2;
+    }
+
+    @media (max-width: 720px) {
+      .preset-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+
+    @media (max-width: 600px) {
+      #app { padding: var(--page-padding-mobile); }
+      h1 { font-size: var(--text-xl); }
+      .player-header .player-total { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+  <main id="app">
+    <h1>Dutch Blitz Scorekeeper</h1>
+    <p class="description">Track scores across rounds for 2&ndash;8 players. Each round, enter each player&rsquo;s net round score (+1 per card played to the Dutch piles, &minus;2 per card left in their Blitz pile). Running totals accumulate down the scoreboard with the most recent round on top.</p>
+
+    <section id="setup-view" class="view">
+      <div class="card">
+        <h2>Game settings</h2>
+        <div class="field">
+          <label for="target-score">Play to (target score)</label>
+          <input id="target-score" type="number" min="1" step="1" value="75">
+          <div class="hint">First player to reach this total wins. Default 75.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:var(--space-3); flex-wrap:wrap; margin-bottom:var(--space-3);">
+          <h2 style="margin-bottom:0;">Players</h2>
+          <button id="add-player-btn" type="button">+ Add player</button>
+        </div>
+        <div id="player-list" class="player-config"></div>
+        <div class="hint" style="margin-top:var(--space-3);">2&ndash;8 players. Each player picks a deck (symbol + color) matching their physical Dutch Blitz cards. The Classic Green box has the first four; the Blue Expansion has the last four.</div>
+      </div>
+
+      <div class="actions">
+        <button id="start-game-btn" class="primary" type="button">Start game</button>
+        <button id="reset-setup-btn" type="button">Reset</button>
+      </div>
+    </section>
+
+    <section id="game-view" class="view">
+      <div class="game-header">
+        <div>
+          <h2 id="game-title" style="margin-bottom:0;">Round&nbsp;1</h2>
+          <div class="meta" id="game-meta"></div>
+        </div>
+        <div class="actions">
+          <button id="add-round-btn" class="primary" type="button">+ Add round</button>
+          <button id="end-game-btn" type="button">End game</button>
+        </div>
+      </div>
+
+      <div id="winner-banner" class="winner-banner" hidden></div>
+
+      <div class="scoreboard-wrap">
+        <table class="scoreboard">
+          <thead>
+            <tr id="scoreboard-head"></tr>
+          </thead>
+          <tbody id="scoreboard-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="round-dialog" class="modal" aria-labelledby="round-dialog-title">
+    <h3 id="round-dialog-title">Round</h3>
+    <p class="hint" style="margin-bottom:var(--space-3);">Enter each player&rsquo;s net round score. Reminder: +1 per card played to the Dutch piles, &minus;2 per card left in their Blitz pile.</p>
+    <div id="round-input-grid" class="round-input-grid"></div>
+    <div class="modal-actions">
+      <button id="round-cancel-btn" type="button">Cancel</button>
+      <button id="round-save-btn" class="primary" type="button">Save round</button>
+    </div>
+  </dialog>
+
+  <dialog id="end-dialog" class="modal" aria-labelledby="end-dialog-title">
+    <form method="dialog">
+      <h3 id="end-dialog-title">End game?</h3>
+      <p>This clears the current scoreboard and returns to setup. The current game will be lost.</p>
+      <div class="modal-actions">
+        <button value="cancel" autofocus>Cancel</button>
+        <button value="end" class="danger">End game</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    const SYMBOL_SVG = {
+      pump: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor" aria-hidden="true">
+        <rect x="3" y="20" width="18" height="2" rx="0.5"/>
+        <rect x="9" y="6" width="6" height="14" rx="0.5"/>
+        <path d="M15 9 L21 9 L21 13 L18 13 L18 11 L15 11 Z"/>
+        <path d="M3 4 L11 7 L11 9 L9 9 L9 8 L3 6 Z"/>
+      </svg>`,
+      carriage: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor" aria-hidden="true">
+        <path d="M3 14 Q3 7 12 7 Q21 7 21 14 L21 16 L3 16 Z"/>
+        <rect x="2" y="16" width="20" height="2"/>
+        <circle cx="7" cy="20" r="2.5"/>
+        <circle cx="17" cy="20" r="2.5"/>
+      </svg>`,
+      plow: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor" aria-hidden="true">
+        <path d="M2 19 L13 8 L19 14 L13 20 L8 20 Z"/>
+        <rect x="14" y="4" width="2.2" height="11" transform="rotate(25 15 9)"/>
+        <rect x="17" y="4" width="2.2" height="11" transform="rotate(25 18 9)"/>
+        <rect x="13" y="2" width="6" height="2" transform="rotate(25 16 3)"/>
+      </svg>`,
+      pail: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor" aria-hidden="true">
+        <path d="M5.5 8 L18.5 8 L17 21 L7 21 Z"/>
+        <path d="M6 8 Q12 1 18 8" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+      </svg>`,
+    };
+
+    const PRESETS = [
+      { id: 'green-pump',      label: 'Green Pump',      symbol: 'pump',     color: 'var(--db-green)',  pack: 'classic' },
+      { id: 'red-carriage',    label: 'Red Carriage',    symbol: 'carriage', color: 'var(--db-red)',    pack: 'classic' },
+      { id: 'blue-plow',       label: 'Blue Plow',       symbol: 'plow',     color: 'var(--db-blue)',   pack: 'classic' },
+      { id: 'yellow-pail',     label: 'Yellow Pail',     symbol: 'pail',     color: 'var(--db-yellow)', pack: 'classic' },
+      { id: 'orange-pump',     label: 'Orange Pump',     symbol: 'pump',     color: 'var(--db-orange)', pack: 'blue' },
+      { id: 'purple-carriage', label: 'Purple Carriage', symbol: 'carriage', color: 'var(--db-purple)', pack: 'blue' },
+      { id: 'pink-plow',       label: 'Pink Plow',       symbol: 'plow',     color: 'var(--db-pink)',   pack: 'blue' },
+      { id: 'teal-pail',       label: 'Teal Pail',       symbol: 'pail',     color: 'var(--db-teal)',   pack: 'blue' },
+    ];
+    const PRESET_BY_ID = Object.fromEntries(PRESETS.map(p => [p.id, p]));
+
+    const STORAGE_KEY = 'dutch-blitz-state-v2';
+    const MAX_PLAYERS = 8;
+    const MIN_PLAYERS = 2;
+
+    function defaultState() {
+      return {
+        phase: 'setup',
+        targetScore: 75,
+        players: [
+          makePlayer('Player 1', 'green-pump'),
+          makePlayer('Player 2', 'red-carriage'),
+        ],
+        rounds: [],
+      };
+    }
+
+    function makePlayer(name, presetId) {
+      return { id: makeId(), name, presetId };
+    }
+
+    function makeId() {
+      return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+    }
+
+    let state = loadState() || defaultState();
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return null;
+        return parsed;
+      } catch { return null; }
+    }
+
+    function saveState() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+      catch { /* quota / unavailable; ignore */ }
+    }
+
+    function roundScore(r, playerId) {
+      return Number(r.scoresById[playerId]) || 0;
+    }
+
+    function totalsByPlayer() {
+      const totals = {};
+      for (const pl of state.players) totals[pl.id] = 0;
+      for (const r of state.rounds) {
+        for (const pl of state.players) totals[pl.id] += roundScore(r, pl.id);
+      }
+      return totals;
+    }
+
+    function cumulativesByRound() {
+      const running = {};
+      for (const pl of state.players) running[pl.id] = 0;
+      const out = [];
+      for (const r of state.rounds) {
+        const snap = {};
+        for (const pl of state.players) {
+          running[pl.id] += roundScore(r, pl.id);
+          snap[pl.id] = running[pl.id];
+        }
+        out.push(snap);
+      }
+      return out;
+    }
+
+    const setupView = document.getElementById('setup-view');
+    const gameView = document.getElementById('game-view');
+
+    function render() {
+      setupView.classList.toggle('visible', state.phase === 'setup');
+      gameView.classList.toggle('visible', state.phase === 'playing');
+      if (state.phase === 'setup') renderSetup();
+      else renderGame();
+      saveState();
+    }
+
+    const playerListEl = document.getElementById('player-list');
+    const targetScoreInput = document.getElementById('target-score');
+    const startGameBtn = document.getElementById('start-game-btn');
+    const addPlayerBtn = document.getElementById('add-player-btn');
+    const resetSetupBtn = document.getElementById('reset-setup-btn');
+
+    function renderSetup() {
+      targetScoreInput.value = state.targetScore;
+      playerListEl.innerHTML = '';
+      for (const player of state.players) {
+        playerListEl.appendChild(renderPlayerRow(player));
+      }
+      addPlayerBtn.disabled = state.players.length >= MAX_PLAYERS;
+      const usedNames = state.players.map(p => p.name.trim()).filter(Boolean);
+      const allNamed = state.players.every(p => p.name.trim().length > 0);
+      const allUnique = new Set(usedNames).size === state.players.length;
+      startGameBtn.disabled = !(state.players.length >= MIN_PLAYERS && allNamed && allUnique);
+      startGameBtn.title = !allNamed ? 'Every player needs a name'
+                          : !allUnique ? 'Player names must be unique'
+                          : state.players.length < MIN_PLAYERS ? 'Need at least 2 players'
+                          : '';
+    }
+
+    function renderPlayerRow(player) {
+      const wrap = document.createElement('div');
+      wrap.className = 'player-row';
+      wrap.dataset.playerId = player.id;
+
+      const preset = PRESET_BY_ID[player.presetId] || PRESETS[0];
+      wrap.appendChild(renderAvatar(preset, 'lg'));
+
+      const middle = document.createElement('div');
+      middle.style.display = 'flex';
+      middle.style.flexDirection = 'column';
+      middle.style.gap = 'var(--space-2)';
+      middle.style.minWidth = '0';
+
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.className = 'name-input';
+      nameInput.id = `player-name-${player.id}`;
+      nameInput.name = `player-name-${player.id}`;
+      nameInput.value = player.name;
+      nameInput.placeholder = 'Player name';
+      nameInput.maxLength = 24;
+      nameInput.setAttribute('aria-label', 'Player name');
+      nameInput.addEventListener('input', e => {
+        player.name = e.target.value;
+        const allNamed = state.players.every(p => p.name.trim().length > 0);
+        const usedNames = state.players.map(p => p.name.trim()).filter(Boolean);
+        const allUnique = new Set(usedNames).size === state.players.length;
+        startGameBtn.disabled = !(state.players.length >= MIN_PLAYERS && allNamed && allUnique);
+        saveState();
+      });
+
+      const nameRow = document.createElement('div');
+      nameRow.className = 'name-row';
+      nameRow.appendChild(nameInput);
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'icon-only danger remove-btn';
+      removeBtn.title = 'Remove player';
+      removeBtn.setAttribute('aria-label', `Remove ${player.name || 'player'}`);
+      removeBtn.textContent = '\u00D7';
+      removeBtn.style.fontSize = '1.5rem';
+      removeBtn.disabled = state.players.length <= 1;
+      removeBtn.addEventListener('click', () => {
+        state.players = state.players.filter(p => p.id !== player.id);
+        renderSetup();
+        saveState();
+      });
+      nameRow.appendChild(removeBtn);
+
+      middle.appendChild(nameRow);
+
+      const presetGrid = document.createElement('div');
+      presetGrid.className = 'preset-grid';
+      const usedByOthers = new Set(
+        state.players.filter(p => p.id !== player.id).map(p => p.presetId)
+      );
+      for (const p of PRESETS) {
+        const tile = document.createElement('button');
+        tile.type = 'button';
+        tile.className = 'preset-tile';
+        tile.title = p.label;
+        tile.setAttribute('aria-label', p.label);
+        tile.style.color = p.color;
+        if (usedByOthers.has(p.id)) {
+          tile.disabled = true;
+          tile.title += ' (taken)';
+        }
+        if (p.id === player.presetId) tile.classList.add('selected');
+        tile.innerHTML = SYMBOL_SVG[p.symbol];
+        tile.addEventListener('click', () => {
+          player.presetId = p.id;
+          renderSetup();
+        });
+        presetGrid.appendChild(tile);
+      }
+      middle.appendChild(presetGrid);
+      wrap.appendChild(middle);
+
+      return wrap;
+    }
+
+    function renderAvatar(preset, size) {
+      const a = document.createElement('span');
+      a.className = 'player-avatar' + (size ? ` ${size}` : '');
+      a.style.color = preset.color;
+      a.style.borderColor = preset.color;
+      a.innerHTML = SYMBOL_SVG[preset.symbol];
+      return a;
+    }
+
+    addPlayerBtn.addEventListener('click', () => {
+      if (state.players.length >= MAX_PLAYERS) return;
+      const used = new Set(state.players.map(p => p.presetId));
+      const nextPreset = PRESETS.find(p => !used.has(p.id)) || PRESETS[0];
+      state.players.push(makePlayer(`Player ${state.players.length + 1}`, nextPreset.id));
+      renderSetup();
+      saveState();
+    });
+
+    resetSetupBtn.addEventListener('click', () => {
+      state = defaultState();
+      render();
+    });
+
+    targetScoreInput.addEventListener('input', e => {
+      const n = Math.max(1, Math.floor(Number(e.target.value) || 0));
+      state.targetScore = n;
+      saveState();
+    });
+
+    startGameBtn.addEventListener('click', () => {
+      if (startGameBtn.disabled) return;
+      state.phase = 'playing';
+      render();
+    });
+
+    const scoreboardHead = document.getElementById('scoreboard-head');
+    const scoreboardBody = document.getElementById('scoreboard-body');
+    const gameTitle = document.getElementById('game-title');
+    const gameMeta = document.getElementById('game-meta');
+    const winnerBanner = document.getElementById('winner-banner');
+
+    function renderGame() {
+      const totals = totalsByPlayer();
+      const cumulatives = cumulativesByRound();
+      const nextRoundN = state.rounds.length + 1;
+      gameTitle.textContent = state.rounds.length === 0 ? 'Round 1' : `Next: Round ${nextRoundN}`;
+      gameMeta.textContent = `Playing to ${state.targetScore} \u2014 ${state.rounds.length} round${state.rounds.length === 1 ? '' : 's'} played`;
+
+      const reached = state.players
+        .map(p => ({ p, total: totals[p.id] }))
+        .filter(x => x.total >= state.targetScore);
+      if (reached.length > 0) {
+        const top = reached.reduce((a, b) => (b.total > a.total ? b : a));
+        const tied = reached.filter(x => x.total === top.total);
+        winnerBanner.hidden = false;
+        winnerBanner.textContent = tied.length === 1
+          ? `\u{1F3C6} ${top.p.name} hit ${top.total} \u2014 target ${state.targetScore} reached.`
+          : `Tied at ${top.total}: ${tied.map(x => x.p.name).join(', ')}`;
+      } else {
+        winnerBanner.hidden = true;
+        winnerBanner.textContent = '';
+      }
+
+      scoreboardHead.innerHTML = '';
+      const cornerTh = document.createElement('th');
+      cornerTh.className = 'round-col';
+      cornerTh.textContent = 'Round';
+      scoreboardHead.appendChild(cornerTh);
+      for (const pl of state.players) {
+        const th = document.createElement('th');
+        const preset = PRESET_BY_ID[pl.presetId] || PRESETS[0];
+        const wrap = document.createElement('div');
+        wrap.className = 'player-header';
+        wrap.appendChild(renderAvatar(preset, 'lg'));
+        const nameEl = document.createElement('div');
+        nameEl.className = 'player-name';
+        nameEl.textContent = pl.name;
+        nameEl.title = pl.name;
+        wrap.appendChild(nameEl);
+        const totalEl = document.createElement('div');
+        totalEl.className = 'player-total';
+        totalEl.textContent = totals[pl.id];
+        totalEl.style.color = preset.color;
+        wrap.appendChild(totalEl);
+        const targetEl = document.createElement('div');
+        targetEl.className = 'player-target';
+        const remaining = state.targetScore - totals[pl.id];
+        targetEl.textContent = remaining > 0 ? `${remaining} to go` : 'reached target';
+        wrap.appendChild(targetEl);
+        th.appendChild(wrap);
+        scoreboardHead.appendChild(th);
+      }
+
+      scoreboardBody.innerHTML = '';
+      if (state.rounds.length === 0) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = state.players.length + 1;
+        td.className = 'cell-empty';
+        td.style.padding = 'var(--space-6)';
+        td.textContent = 'No rounds yet. Click "Add round" to record the first one.';
+        tr.appendChild(td);
+        scoreboardBody.appendChild(tr);
+      } else {
+        for (let i = state.rounds.length - 1; i >= 0; i--) {
+          const r = state.rounds[i];
+          const cumSnap = cumulatives[i];
+          const tr = document.createElement('tr');
+
+          const labelTd = document.createElement('td');
+          labelTd.className = 'round-col';
+          const labelWrap = document.createElement('div');
+          labelWrap.className = 'round-actions';
+          const lbl = document.createElement('span');
+          lbl.className = 'round-label';
+          lbl.textContent = `R${i + 1}`;
+          labelWrap.appendChild(lbl);
+          const editBtn = document.createElement('button');
+          editBtn.type = 'button';
+          editBtn.className = 'icon-only';
+          editBtn.title = 'Edit round';
+          editBtn.setAttribute('aria-label', `Edit round ${i + 1}`);
+          editBtn.textContent = '\u270E';
+          editBtn.style.minHeight = '32px';
+          editBtn.style.minWidth = '32px';
+          editBtn.style.padding = '0 6px';
+          editBtn.addEventListener('click', () => openRoundDialog(i));
+          labelWrap.appendChild(editBtn);
+          const delBtn = document.createElement('button');
+          delBtn.type = 'button';
+          delBtn.className = 'icon-only danger';
+          delBtn.title = 'Delete round';
+          delBtn.setAttribute('aria-label', `Delete round ${i + 1}`);
+          delBtn.textContent = '\u00D7';
+          delBtn.style.minHeight = '32px';
+          delBtn.style.minWidth = '32px';
+          delBtn.style.padding = '0 6px';
+          delBtn.addEventListener('click', () => {
+            if (confirm(`Delete round ${i + 1}?`)) {
+              state.rounds.splice(i, 1);
+              render();
+            }
+          });
+          labelWrap.appendChild(delBtn);
+          labelTd.appendChild(labelWrap);
+          tr.appendChild(labelTd);
+
+          for (const pl of state.players) {
+            const td = document.createElement('td');
+            const delta = roundScore(r, pl.id);
+            const running = cumSnap[pl.id];
+            const runEl = document.createElement('div');
+            runEl.className = 'cell-running';
+            runEl.textContent = running;
+            td.appendChild(runEl);
+            const delEl = document.createElement('div');
+            delEl.className = 'cell-delta';
+            if (delta > 0) { delEl.classList.add('positive'); delEl.textContent = `+${delta}`; }
+            else if (delta < 0) { delEl.classList.add('negative'); delEl.textContent = `${delta}`; }
+            else { delEl.textContent = '\u00B10'; }
+            td.appendChild(delEl);
+            tr.appendChild(td);
+          }
+          scoreboardBody.appendChild(tr);
+        }
+      }
+    }
+
+    const roundDialog = document.getElementById('round-dialog');
+    const roundDialogTitle = document.getElementById('round-dialog-title');
+    const roundInputGrid = document.getElementById('round-input-grid');
+    const roundCancelBtn = document.getElementById('round-cancel-btn');
+    const roundSaveBtn = document.getElementById('round-save-btn');
+    const addRoundBtn = document.getElementById('add-round-btn');
+
+    let editingRoundIndex = null;
+    let roundDraft = {};
+
+    const MIN_INPUT_SCORE = -99;
+    const MAX_INPUT_SCORE = 99;
+    const invalidScores = new Set();
+
+    function openRoundDialog(index) {
+      editingRoundIndex = (typeof index === 'number') ? index : null;
+      const isEdit = editingRoundIndex !== null;
+      const roundN = isEdit ? editingRoundIndex + 1 : state.rounds.length + 1;
+      roundDialogTitle.textContent = isEdit ? `Edit round ${roundN}` : `Round ${roundN}`;
+      roundDraft = {};
+      invalidScores.clear();
+      roundSaveBtn.disabled = false;
+      for (const pl of state.players) {
+        roundDraft[pl.id] = isEdit ? roundScore(state.rounds[editingRoundIndex], pl.id) : 0;
+      }
+      renderRoundDraft();
+      roundDialog.showModal();
+      const first = roundInputGrid.querySelector('input');
+      if (first) { first.focus(); first.select(); }
+    }
+
+    function renderRoundDraft() {
+      roundInputGrid.innerHTML = '';
+      for (const pl of state.players) {
+        const preset = PRESET_BY_ID[pl.presetId] || PRESETS[0];
+        const row = document.createElement('div');
+        row.className = 'round-input-row';
+
+        const who = document.createElement('div');
+        who.className = 'who';
+        who.appendChild(renderAvatar(preset, 'sm'));
+        const wn = document.createElement('div');
+        wn.className = 'who-name';
+        wn.textContent = pl.name;
+        wn.title = pl.name;
+        who.appendChild(wn);
+        row.appendChild(who);
+
+        const scoreCell = document.createElement('div');
+        scoreCell.className = 'score-cell';
+
+        const scoreInput = document.createElement('input');
+        scoreInput.type = 'number';
+        scoreInput.className = 'score-input';
+        scoreInput.id = `score-${pl.id}`;
+        scoreInput.name = `score-${pl.id}`;
+        scoreInput.min = String(MIN_INPUT_SCORE);
+        scoreInput.max = String(MAX_INPUT_SCORE);
+        scoreInput.step = '1';
+        scoreInput.inputMode = 'numeric';
+        scoreInput.value = roundDraft[pl.id];
+        scoreInput.setAttribute('aria-label', `${pl.name} round score`);
+        const errorId = `score-error-${pl.id}`;
+        scoreInput.setAttribute('aria-describedby', errorId);
+
+        const errorEl = document.createElement('div');
+        errorEl.className = 'score-error';
+        errorEl.id = errorId;
+        errorEl.setAttribute('role', 'alert');
+        errorEl.hidden = true;
+
+        scoreInput.addEventListener('input', e => {
+          const raw = e.target.value.trim();
+          let n = NaN;
+          let err = '';
+          if (raw === '' || raw === '-') {
+            n = 0;
+          } else {
+            n = Number(raw);
+            if (!Number.isFinite(n)) err = 'Enter a number';
+            else if (!Number.isInteger(n)) err = 'Whole numbers only';
+            else if (n < MIN_INPUT_SCORE || n > MAX_INPUT_SCORE) err = `Score must be between ${MIN_INPUT_SCORE} and ${MAX_INPUT_SCORE}`;
+          }
+          if (err) {
+            scoreInput.setAttribute('aria-invalid', 'true');
+            errorEl.hidden = false;
+            errorEl.textContent = err;
+            invalidScores.add(pl.id);
+          } else {
+            scoreInput.removeAttribute('aria-invalid');
+            errorEl.hidden = true;
+            errorEl.textContent = '';
+            invalidScores.delete(pl.id);
+            roundDraft[pl.id] = n;
+          }
+          roundSaveBtn.disabled = invalidScores.size > 0;
+        });
+
+        scoreCell.appendChild(scoreInput);
+        scoreCell.appendChild(errorEl);
+        row.appendChild(scoreCell);
+
+        roundInputGrid.appendChild(row);
+      }
+    }
+
+    function clampInt(v, lo, hi) {
+      let n = Math.floor(Number(v) || 0);
+      if (n < lo) n = lo;
+      if (n > hi) n = hi;
+      return n;
+    }
+
+    addRoundBtn.addEventListener('click', () => openRoundDialog(null));
+
+    roundCancelBtn.addEventListener('click', () => roundDialog.close('cancel'));
+
+    roundSaveBtn.addEventListener('click', () => {
+      const scoresById = {};
+      for (const pl of state.players) {
+        scoresById[pl.id] = roundDraft[pl.id];
+      }
+      if (editingRoundIndex === null) {
+        state.rounds.push({ id: makeId(), scoresById });
+      } else {
+        state.rounds[editingRoundIndex].scoresById = scoresById;
+      }
+      roundDialog.close('save');
+      render();
+    });
+
+    roundDialog.addEventListener('click', e => {
+      if (e.target === roundDialog) roundDialog.close('cancel');
+    });
+
+    const endDialog = document.getElementById('end-dialog');
+    const endGameBtn = document.getElementById('end-game-btn');
+    endGameBtn.addEventListener('click', () => endDialog.showModal());
+    endDialog.addEventListener('close', () => {
+      if (endDialog.returnValue !== 'end') return;
+      state = defaultState();
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>
