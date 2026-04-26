@@ -433,7 +433,7 @@
     }
     .round-input-row {
       display: grid;
-      grid-template-columns: auto 1fr;
+      grid-template-columns: 1fr auto;
       gap: var(--space-3);
       align-items: center;
       padding: var(--space-3);
@@ -453,32 +453,23 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .round-input-row .inputs {
-      display: grid;
-      grid-template-columns: 1fr 1fr auto;
-      gap: var(--space-2);
-      align-items: end;
+    .round-input-row .score-label {
+      margin: 0;
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      font-weight: 500;
     }
-    .round-input-row .inputs .field { margin: 0; }
-    .round-input-row .inputs label {
-      font-size: 0.75rem;
-      margin-bottom: 2px;
-      white-space: nowrap;
-    }
-    .round-input-row .calc {
+    .round-input-row .score-input {
+      width: 96px;
+      text-align: center;
       font-weight: 600;
       font-size: var(--text-lg);
-      min-width: 48px;
-      text-align: right;
     }
-    .round-input-row .calc.positive { color: var(--success); }
-    .round-input-row .calc.negative { color: var(--error); }
 
     @media (max-width: 720px) {
       .preset-grid { grid-template-columns: repeat(4, 1fr); }
       .player-row { grid-template-columns: auto 1fr; }
       .player-row .remove-btn { grid-column: 2; justify-self: end; }
-      .round-input-row { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 600px) {
@@ -491,7 +482,7 @@
 <body>
   <main id="app">
     <h1>Dutch Blitz Scorekeeper</h1>
-    <p class="description">Track scores across rounds for 2&ndash;8 players. Each round, enter cards played to the Dutch piles and cards left in the Blitz pile; we&rsquo;ll do the math (+1 per Dutch card, &minus;2 per Blitz card) and keep a running total.</p>
+    <p class="description">Track scores across rounds for 2&ndash;8 players. Each round, enter each player&rsquo;s net round score (+1 per card played to the Dutch piles, &minus;2 per card left in their Blitz pile). Running totals accumulate down the scoreboard with the most recent round on top.</p>
 
     <section id="setup-view" class="view">
       <div class="card">
@@ -545,7 +536,7 @@
 
   <dialog id="round-dialog" class="modal" aria-labelledby="round-dialog-title">
     <h3 id="round-dialog-title">Round</h3>
-    <p class="hint" style="margin-bottom:var(--space-3);">For each player, enter cards played to the Dutch piles and cards left in their Blitz pile.</p>
+    <p class="hint" style="margin-bottom:var(--space-3);">Enter each player&rsquo;s net round score. Reminder: +1 per card played to the Dutch piles, &minus;2 per card left in their Blitz pile.</p>
     <div id="round-input-grid" class="round-input-grid"></div>
     <div class="modal-actions">
       <button id="round-cancel-btn" type="button">Cancel</button>
@@ -643,20 +634,19 @@
       catch { /* quota / unavailable; ignore */ }
     }
 
-    function scoreFor(played, blitz) {
-      const p = Number(played) || 0;
-      const b = Number(blitz) || 0;
-      return p - 2 * b;
+    function roundScore(r, playerId) {
+      const v = r.scoresById[playerId];
+      if (typeof v === 'number') return v;
+      // Legacy entries stored { played, blitz }; normalize on read.
+      if (v && typeof v === 'object') return (Number(v.played) || 0) - 2 * (Number(v.blitz) || 0);
+      return 0;
     }
 
     function totalsByPlayer() {
       const totals = {};
       for (const pl of state.players) totals[pl.id] = 0;
       for (const r of state.rounds) {
-        for (const pl of state.players) {
-          const s = r.scoresById[pl.id];
-          if (s) totals[pl.id] += scoreFor(s.played, s.blitz);
-        }
+        for (const pl of state.players) totals[pl.id] += roundScore(r, pl.id);
       }
       return totals;
     }
@@ -668,8 +658,7 @@
       for (const r of state.rounds) {
         const snap = {};
         for (const pl of state.players) {
-          const s = r.scoresById[pl.id];
-          if (s) running[pl.id] += scoreFor(s.played, s.blitz);
+          running[pl.id] += roundScore(r, pl.id);
           snap[pl.id] = running[pl.id];
         }
         out.push(snap);
@@ -938,8 +927,7 @@
 
           for (const pl of state.players) {
             const td = document.createElement('td');
-            const s = r.scoresById[pl.id];
-            const delta = s ? scoreFor(s.played, s.blitz) : 0;
+            const delta = roundScore(r, pl.id);
             const running = cumSnap[pl.id];
             const runEl = document.createElement('div');
             runEl.className = 'cell-running';
@@ -968,6 +956,9 @@
     let editingRoundIndex = null;
     let roundDraft = {};
 
+    const ROUND_SCORE_MIN = -40;
+    const ROUND_SCORE_MAX = 40;
+
     function openRoundDialog(index) {
       editingRoundIndex = (typeof index === 'number') ? index : null;
       const isEdit = editingRoundIndex !== null;
@@ -975,17 +966,12 @@
       roundDialogTitle.textContent = isEdit ? `Edit round ${roundN}` : `Round ${roundN}`;
       roundDraft = {};
       for (const pl of state.players) {
-        if (isEdit) {
-          const existing = state.rounds[editingRoundIndex].scoresById[pl.id];
-          roundDraft[pl.id] = existing ? { played: existing.played, blitz: existing.blitz } : { played: 0, blitz: 0 };
-        } else {
-          roundDraft[pl.id] = { played: 0, blitz: 0 };
-        }
+        roundDraft[pl.id] = isEdit ? roundScore(state.rounds[editingRoundIndex], pl.id) : 0;
       }
       renderRoundDraft();
       roundDialog.showModal();
       const first = roundInputGrid.querySelector('input');
-      if (first) first.focus();
+      if (first) { first.focus(); first.select(); }
     }
 
     function renderRoundDraft() {
@@ -1003,75 +989,30 @@
         wn.textContent = pl.name;
         wn.title = pl.name;
         who.appendChild(wn);
+        const scoreLabel = document.createElement('label');
+        scoreLabel.className = 'score-label';
+        scoreLabel.htmlFor = `score-${pl.id}`;
+        scoreLabel.textContent = 'Score';
+        who.appendChild(scoreLabel);
         row.appendChild(who);
 
-        const inputs = document.createElement('div');
-        inputs.className = 'inputs';
-
-        const playedField = document.createElement('div');
-        playedField.className = 'field';
-        const playedLabel = document.createElement('label');
-        playedLabel.textContent = 'To Dutch';
-        playedLabel.htmlFor = `played-${pl.id}`;
-        const playedInput = document.createElement('input');
-        playedInput.type = 'number';
-        playedInput.id = `played-${pl.id}`;
-        playedInput.name = `played-${pl.id}`;
-        playedInput.min = '0';
-        playedInput.max = '40';
-        playedInput.step = '1';
-        playedInput.value = roundDraft[pl.id].played;
-        playedInput.setAttribute('aria-label', `${pl.name} cards played to Dutch piles`);
-        playedInput.addEventListener('input', e => {
-          roundDraft[pl.id].played = clampInt(e.target.value, 0, 40);
-          updateCalc();
+        const scoreInput = document.createElement('input');
+        scoreInput.type = 'number';
+        scoreInput.className = 'score-input';
+        scoreInput.id = `score-${pl.id}`;
+        scoreInput.name = `score-${pl.id}`;
+        scoreInput.min = String(ROUND_SCORE_MIN);
+        scoreInput.max = String(ROUND_SCORE_MAX);
+        scoreInput.step = '1';
+        scoreInput.inputMode = 'numeric';
+        scoreInput.value = roundDraft[pl.id];
+        scoreInput.setAttribute('aria-label', `${pl.name} round score`);
+        scoreInput.addEventListener('input', e => {
+          roundDraft[pl.id] = clampInt(e.target.value, ROUND_SCORE_MIN, ROUND_SCORE_MAX);
         });
-        playedField.appendChild(playedLabel);
-        playedField.appendChild(playedInput);
-        inputs.appendChild(playedField);
+        row.appendChild(scoreInput);
 
-        const blitzField = document.createElement('div');
-        blitzField.className = 'field';
-        const blitzLabel = document.createElement('label');
-        blitzLabel.textContent = 'Left in Blitz';
-        blitzLabel.htmlFor = `blitz-${pl.id}`;
-        const blitzInput = document.createElement('input');
-        blitzInput.type = 'number';
-        blitzInput.id = `blitz-${pl.id}`;
-        blitzInput.name = `blitz-${pl.id}`;
-        blitzInput.min = '0';
-        blitzInput.max = '10';
-        blitzInput.step = '1';
-        blitzInput.value = roundDraft[pl.id].blitz;
-        blitzInput.setAttribute('aria-label', `${pl.name} cards left in Blitz pile`);
-        blitzInput.addEventListener('input', e => {
-          roundDraft[pl.id].blitz = clampInt(e.target.value, 0, 10);
-          updateCalc();
-        });
-        blitzField.appendChild(blitzLabel);
-        blitzField.appendChild(blitzInput);
-        inputs.appendChild(blitzField);
-
-        const calc = document.createElement('div');
-        calc.className = 'calc';
-        calc.dataset.playerId = pl.id;
-        inputs.appendChild(calc);
-
-        row.appendChild(inputs);
         roundInputGrid.appendChild(row);
-      }
-      updateCalc();
-    }
-
-    function updateCalc() {
-      for (const pl of state.players) {
-        const calcEl = roundInputGrid.querySelector(`.calc[data-player-id="${pl.id}"]`);
-        if (!calcEl) continue;
-        const d = roundDraft[pl.id];
-        const s = scoreFor(d.played, d.blitz);
-        calcEl.textContent = s > 0 ? `+${s}` : `${s}`;
-        calcEl.classList.toggle('positive', s > 0);
-        calcEl.classList.toggle('negative', s < 0);
       }
     }
 
@@ -1089,8 +1030,7 @@
     roundSaveBtn.addEventListener('click', () => {
       const scoresById = {};
       for (const pl of state.players) {
-        const d = roundDraft[pl.id];
-        scoresById[pl.id] = { played: d.played, blitz: d.blitz };
+        scoresById[pl.id] = roundDraft[pl.id];
       }
       if (editingRoundIndex === null) {
         state.rounds.push({ id: makeId(), scoresById });
