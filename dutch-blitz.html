@@ -133,7 +133,6 @@
       color: var(--text-secondary);
       font-size: var(--text-base);
       margin-bottom: var(--space-6);
-      max-width: 60ch;
     }
 
     .card {
@@ -453,12 +452,6 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .round-input-row .score-label {
-      margin: 0;
-      font-size: var(--text-sm);
-      color: var(--text-secondary);
-      font-weight: 500;
-    }
     .round-input-row .score-input {
       width: 96px;
       text-align: center;
@@ -593,7 +586,7 @@
     ];
     const PRESET_BY_ID = Object.fromEntries(PRESETS.map(p => [p.id, p]));
 
-    const STORAGE_KEY = 'dutch-blitz-state-v1';
+    const STORAGE_KEY = 'dutch-blitz-state-v2';
     const MAX_PLAYERS = 8;
     const MIN_PLAYERS = 2;
 
@@ -635,11 +628,7 @@
     }
 
     function roundScore(r, playerId) {
-      const v = r.scoresById[playerId];
-      if (typeof v === 'number') return v;
-      // Legacy entries stored { played, blitz }; normalize on read.
-      if (v && typeof v === 'object') return (Number(v.played) || 0) - 2 * (Number(v.blitz) || 0);
-      return 0;
+      return Number(r.scoresById[playerId]) || 0;
     }
 
     function totalsByPlayer() {
@@ -824,7 +813,7 @@
       const cumulatives = cumulativesByRound();
       const nextRoundN = state.rounds.length + 1;
       gameTitle.textContent = state.rounds.length === 0 ? 'Round 1' : `Next: Round ${nextRoundN}`;
-      gameMeta.textContent = `Playing to ${state.targetScore} \u2014 ${state.players.length} players, ${state.rounds.length} round${state.rounds.length === 1 ? '' : 's'} played`;
+      gameMeta.textContent = `Playing to ${state.targetScore} \u2014 ${state.rounds.length} round${state.rounds.length === 1 ? '' : 's'} played`;
 
       const reached = state.players
         .map(p => ({ p, total: totals[p.id] }))
@@ -956,8 +945,8 @@
     let editingRoundIndex = null;
     let roundDraft = {};
 
-    const ROUND_SCORE_MIN = -40;
-    const ROUND_SCORE_MAX = 40;
+    const ROUND_SCORE_MIN = -999;
+    const ROUND_SCORE_MAX = 999;
 
     function openRoundDialog(index) {
       editingRoundIndex = (typeof index === 'number') ? index : null;
@@ -989,11 +978,6 @@
         wn.textContent = pl.name;
         wn.title = pl.name;
         who.appendChild(wn);
-        const scoreLabel = document.createElement('label');
-        scoreLabel.className = 'score-label';
-        scoreLabel.htmlFor = `score-${pl.id}`;
-        scoreLabel.textContent = 'Score';
-        who.appendChild(scoreLabel);
         row.appendChild(who);
 
         const scoreInput = document.createElement('input');
