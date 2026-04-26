@@ -57,16 +57,13 @@
       --warning-bg: #fef7e0;
       --warning: #996700;
 
-      /* Dutch Blitz deck colors. Original (green box) deck colors first, then
-         blue expansion alternates for the same four symbols. */
+      /* Dutch Blitz deck colors. Both the Classic Green box and the Blue
+         Expansion print on the same four ink colors; each pack assigns those
+         colors to a different rotation of the four symbols. */
       --db-green:  oklch(0.62 0.16 145);
       --db-red:    oklch(0.55 0.20 27);
       --db-blue:   oklch(0.55 0.17 250);
       --db-yellow: oklch(0.82 0.16 92);
-      --db-orange: oklch(0.70 0.17 55);
-      --db-purple: oklch(0.50 0.20 305);
-      --db-pink:   oklch(0.72 0.17 5);
-      --db-teal:   oklch(0.65 0.13 195);
     }
 
     @supports (color: oklch(0 0 0)) {
@@ -598,14 +595,14 @@
     };
 
     const PRESETS = [
+      { id: 'blue-plow',       label: 'Blue Plow',       symbol: 'plow',     color: 'var(--db-blue)',   pack: 'classic' },
       { id: 'green-pump',      label: 'Green Pump',      symbol: 'pump',     color: 'var(--db-green)',  pack: 'classic' },
       { id: 'red-carriage',    label: 'Red Carriage',    symbol: 'carriage', color: 'var(--db-red)',    pack: 'classic' },
-      { id: 'blue-plow',       label: 'Blue Plow',       symbol: 'plow',     color: 'var(--db-blue)',   pack: 'classic' },
       { id: 'yellow-pail',     label: 'Yellow Pail',     symbol: 'pail',     color: 'var(--db-yellow)', pack: 'classic' },
-      { id: 'orange-pump',     label: 'Orange Pump',     symbol: 'pump',     color: 'var(--db-orange)', pack: 'blue' },
-      { id: 'purple-carriage', label: 'Purple Carriage', symbol: 'carriage', color: 'var(--db-purple)', pack: 'blue' },
-      { id: 'pink-plow',       label: 'Pink Plow',       symbol: 'plow',     color: 'var(--db-pink)',   pack: 'blue' },
-      { id: 'teal-pail',       label: 'Teal Pail',       symbol: 'pail',     color: 'var(--db-teal)',   pack: 'blue' },
+      { id: 'blue-pump',       label: 'Blue Pump',       symbol: 'pump',     color: 'var(--db-blue)',   pack: 'blue' },
+      { id: 'red-plow',        label: 'Red Plow',        symbol: 'plow',     color: 'var(--db-red)',    pack: 'blue' },
+      { id: 'yellow-carriage', label: 'Yellow Carriage', symbol: 'carriage', color: 'var(--db-yellow)', pack: 'blue' },
+      { id: 'green-pail',      label: 'Green Pail',      symbol: 'pail',     color: 'var(--db-green)',  pack: 'blue' },
     ];
     const PRESET_BY_ID = Object.fromEntries(PRESETS.map(p => [p.id, p]));
 
