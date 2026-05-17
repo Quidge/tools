@@ -472,6 +472,23 @@
       align-items: flex-end;
       gap: var(--space-1);
     }
+    .round-input-row .score-input-group {
+      display: flex;
+      gap: var(--space-2);
+      align-items: stretch;
+    }
+    .round-input-row .sign-toggle {
+      min-width: 44px;
+      padding: 0;
+      font-size: var(--text-lg);
+      font-weight: 600;
+      line-height: 1;
+    }
+    .round-input-row .sign-toggle[aria-pressed="true"] {
+      background: var(--accent-light);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
     .round-input-row .score-input {
       width: 96px;
       text-align: center;
@@ -1072,11 +1089,37 @@
             errorEl.textContent = '';
             invalidScores.delete(pl.id);
             roundDraft[pl.id] = n;
+            signToggle.setAttribute('aria-pressed', n < 0 ? 'true' : 'false');
           }
           roundSaveBtn.disabled = invalidScores.size > 0;
         });
 
-        scoreCell.appendChild(scoreInput);
+        const signToggle = document.createElement('button');
+        signToggle.type = 'button';
+        signToggle.className = 'sign-toggle';
+        signToggle.textContent = '±';
+        signToggle.title = 'Toggle positive / negative';
+        signToggle.setAttribute('aria-label', `Toggle sign for ${pl.name} round score`);
+        signToggle.setAttribute('aria-pressed', roundDraft[pl.id] < 0 ? 'true' : 'false');
+        signToggle.addEventListener('click', () => {
+          const raw = scoreInput.value.trim();
+          const n = raw === '' ? 0 : Number(raw);
+          if (!Number.isFinite(n) || n === 0) {
+            scoreInput.focus();
+            return;
+          }
+          scoreInput.value = String(-n);
+          scoreInput.focus();
+          scoreInput.select();
+          scoreInput.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+
+        const inputGroup = document.createElement('div');
+        inputGroup.className = 'score-input-group';
+        inputGroup.appendChild(signToggle);
+        inputGroup.appendChild(scoreInput);
+
+        scoreCell.appendChild(inputGroup);
         scoreCell.appendChild(errorEl);
         row.appendChild(scoreCell);
 
