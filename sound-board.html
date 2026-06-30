@@ -284,76 +284,40 @@
 
     const pads = Array.from(document.querySelectorAll('.pad'));
 
-    let audioCtx = null;
-    let audioBuffer = null;
-    let decodePromise = null;
-    const voices = {}; // padId -> currently-playing AudioBufferSourceNode
+    // Playback uses one HTMLAudioElement per pad instead of the Web Audio API.
+    // Why: on iOS, Web Audio output is silenced by the hardware Ring/Silent
+    // switch (and Low Power Mode), so the board can be dead-silent on a phone
+    // whose mute switch is on while working everywhere else. Media elements
+    // play through the normal media channel and are NOT muted by that switch,
+    // as long as the first play() runs inside a user gesture (the tap below).
+    // Each pad gets its own element so pads can overlap and each retriggers
+    // independently.
+    const players = pads.map(() => {
+      const audio = new Audio(AUDIO_SRC);
+      audio.preload = 'auto';
+      return audio;
+    });
 
-    function getContext() {
-      if (!audioCtx) {
-        const Ctx = window.AudioContext || window.webkitAudioContext;
-        audioCtx = new Ctx();
+    function play(padIndex, padEl) {
+      const audio = players[padIndex];
+      // Restart from the top. Seeking a playing element cuts it off and
+      // replays it — no pause()/play() race that can throw on mobile.
+      try { audio.currentTime = 0; } catch (_) { /* not seekable yet */ }
+      const result = audio.play();
+      if (result && typeof result.catch === 'function') {
+        result.catch((err) => console.error('Could not play sound:', err));
       }
-      // Browsers start the context suspended until a user gesture.
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      return audioCtx;
+      padEl.classList.add('playing');
     }
 
-    function decodeOnce(ctx) {
-      if (audioBuffer) return Promise.resolve(audioBuffer);
-      if (!decodePromise) {
-        decodePromise = fetch(AUDIO_SRC)
-          .then((res) => res.arrayBuffer())
-          // Use the callback form too for older Safari compatibility.
-          .then((data) => new Promise((resolve, reject) => {
-            ctx.decodeAudioData(data, resolve, reject);
-          }))
-          .then((decoded) => { audioBuffer = decoded; return decoded; });
-      }
-      return decodePromise;
-    }
-
-    function stopVoice(padId) {
-      const current = voices[padId];
-      if (current) {
-        // Detach handler first so cutting off doesn't clear the playing state
-        // of the replacement voice we're about to start.
-        current.onended = null;
-        try { current.stop(); } catch (_) { /* already stopped */ }
-        voices[padId] = null;
-      }
-    }
-
-    function play(padId, padEl) {
-      const ctx = getContext();
-      decodeOnce(ctx).then((buffer) => {
-        // Cut off this pad's previous play before starting a fresh one.
-        stopVoice(padId);
-
-        const source = ctx.createBufferSource();
-        source.buffer = buffer;
-        source.connect(ctx.destination);
-        source.onended = () => {
-          if (voices[padId] === source) {
-            voices[padId] = null;
-            padEl.classList.remove('playing');
-          }
-        };
-        voices[padId] = source;
-        source.start(0);
-        padEl.classList.add('playing');
-      }).catch((err) => {
-        console.error('Could not play sound:', err);
-      });
-    }
-
-    pads.forEach((pad) => {
-      const padId = pad.dataset.pad;
+    pads.forEach((pad, index) => {
+      players[index].addEventListener('ended', () => pad.classList.remove('playing'));
 
       const trigger = (e) => {
+        // Play synchronously inside the gesture so iOS unlocks/keeps audio.
         // pointerdown gives the snappiest, lowest-latency retrigger on touch.
         e.preventDefault();
-        play(padId, pad);
+        play(index, pad);
 
         // Re-arm the pulse animation on every tap, even mid-playback.
         pad.classList.remove('trigger');
@@ -369,7 +333,7 @@
       pad.addEventListener('keydown', (e) => {
         if (e.key === ' ' || e.key === 'Enter') {
           e.preventDefault();
-          play(padId, pad);
+          play(index, pad);
         }
       });
       // pointerdown already handled playback; stop the synthetic click.
