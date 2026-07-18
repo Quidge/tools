@@ -1,7 +1,7 @@
 #!/bin/bash
 # Setup script for Claude Code on the web (cloud environments).
 #
-# Last-edited commit: PENDING-STAMP
+# Last-edited commit: 02481cb
 #
 # This file is NOT executed from the repo. It is the version-controlled source
 # of truth for the environment's "Setup script" field, which can only be set by
