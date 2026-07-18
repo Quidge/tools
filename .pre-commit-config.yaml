@@ -1,18 +1,30 @@
+# Paths excluded from ALL hooks. `(?x)` is verbose-regex mode: whitespace
+# and newlines are ignored and `#` starts a comment, so each entry can be
+# listed on its own line and annotated. Entries are full-path patterns
+# (anchored with ^...$), alternated with `|`.
+exclude: |
+  (?x)^(
+      \.claude/skills/grill-me/.*              |  # third-party skill (https://github.com/mattpocock/skills/blob/main/skills/productivity/grill-me/SKILL.md)
+      \.claude/skills/handoff/.*               |  # third-party skill (https://github.com/mattpocock/skills/blob/main/skills/productivity/handoff/SKILL.md)
+      \.claude/skills/writing-great-skills/.*  |  # third-party skill (https://github.com/mattpocock/skills/blob/main/skills/productivity/writing-great-skills/SKILL.md)
+      \.claude/skills/grilling/.*              # third-party skill (https://github.com/mattpocock/skills/blob/main/skills/productivity/grilling/SKILL.md)
+  )$
+
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
-    - repo: https://github.com/pre-commit/pre-commit-hooks
-      rev: v6.0.0
-      hooks:
-          - id: trailing-whitespace
-          - id: end-of-file-fixer
-          - id: check-yaml
-          - id: check-added-large-files
-    - repo: local
-      hooks:
-          - id: check-redirect-stubs-ignored
-            name: Ensure redirect stubs are gitignored and untracked
-            entry: uv run python scripts/lint_redirect_ignores.py
-            language: system
-            always_run: true
-            pass_filenames: false
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+  - repo: local
+    hooks:
+      - id: check-redirect-stubs-ignored
+        name: Ensure redirect stubs are gitignored and untracked
+        entry: uv run python scripts/lint_redirect_ignores.py
+        language: system
+        always_run: true
+        pass_filenames: false
