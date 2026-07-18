@@ -1,43 +1,29 @@
 ---
 name: gh-image
-description: Upload screenshots, images, or GIFs to this repository's GitHub release asset host and produce embeddable GitHub-flavored markdown. Use when the user wants visual proof for PRs, issues, or comments without committing binary files to git history, regardless of which client or workflow is used to publish the markdown.
+description: Publish visual proof — screenshots, images, or GIFs — as GitHub release assets and produce embeddable GitHub-flavored markdown, keeping binaries out of git history. Use when the user wants images in a PR, issue, or comment, or when another skill needs a hosted image URL for markdown.
 ---
 
 # GitHub Image Asset and Markdown Workflow
 
-Use this repo-specific flow to publish an image and generate reusable GitHub-flavored markdown.
+## Upload the asset
 
-## Preconditions
-
-- Ensure the image file exists before upload.
-- Run from this repository so `uv run` can execute local scripts.
-
-## Upload Image Asset
-
-Run:
+Run from the repo root, so `uv run` resolves the relative script path:
 
 ```sh
-uv run scripts/upload-asset.py /absolute/or/relative/path/to/image.png
+$ uv run scripts/upload-asset.py path/to/image.png
+https://github.com/quidge/tools/releases/download/asset-dump/image+<uuid>.png
 ```
 
-Example:
-```sh
-$ uv run scripts/upload-asset.py /absolute/or/relative/path/to/the_image_name.png
-https://github.com/quidge/tools/releases/download/asset-dump/the_image_name+<uuid>.png
-```
+The script prints the hosted URL on success; no URL means the upload failed, so read stderr. The `+<uuid>` suffix is required — two release assets cannot share a name.
 
-The generated UUID suffix is required because two release assets cannot share the same name.
+## Embed the markdown
 
-## Build Markdown Snippet
-
-If you're embedding this in GH flavored markdown, you can use a snippet like this with the uploaded asset url:
+Drop the printed URL into a GitHub-flavored markdown image:
 
 ```md
-![alt-text-for-screenshot](https://github.com/quidge/tools/releases/download/asset-dump/<filename>+<uuid>.png)
+![alt-text](https://github.com/quidge/tools/releases/download/asset-dump/<filename>+<uuid>.png)
 ```
 
-Use an alt text that describes what the image proves.
+Alt text states what the image proves.
 
-## Cleanup
-
-**NO CLEANUP IS NECESSARY FOR THE ASSET**. Leaving many assets in the release is fine.
+No cleanup needed — leaving many assets in the release is fine.
