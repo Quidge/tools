@@ -6,13 +6,35 @@ Use it to choose an architecture, apply reusable interaction patterns, persist s
 
 These patterns are opt-in. `assets/template.html` provides the baseline scaffold, but it does not preload optional helper markup, CSS, or JS.
 
-## Table of Contents
+## Pattern Index
 
-- [Architecture Patterns](#architecture-patterns)
-- [Shared Styling Defaults](#shared-styling-defaults)
-- [UI Component Patterns](#ui-component-patterns)
-- [Data & State Patterns](#data--state-patterns)
-- [External Libraries](#external-libraries)
+Routing only — jump to the section below for the implementation details.
+
+### [Architecture Patterns](#architecture-patterns)
+- `Simple Stateless Tool` — the tool is mostly a direct input -> process -> output flow with no shared app state.
+- `Interactive App with State` — multiple controls or views mutate shared state, or the UI is derived from combined state.
+- `Tool with CDN Libraries` — vanilla JS is insufficient and a pinned external library is needed.
+
+### [Shared Styling Defaults](#shared-styling-defaults)
+- Deeper snippets and rationale for the font stack, color tokens, layout, spacing/type, touch targets, and responsive breakpoint.
+
+### [UI Component Patterns](#ui-component-patterns)
+- `Copy to Clipboard Button` — users can copy generated content.
+- `Toast Notification` — feedback should be brief and non-blocking.
+- `Error Display` — a failure affects the whole form or app, not just one field.
+- `Form Field + Validation` — inputs need labels, hints, native validation, or field-level errors.
+- `Loading State` — a user action triggers async work.
+- `File Drag & Drop` — users can import files by dropping or selecting them.
+- `Modal Dialog` — the tool opens a secondary flow or overlay.
+- `Confirmation Dialog` — an action is destructive or hard to undo.
+- `Show/Hide Sections` — UI regions are conditionally revealed.
+
+### [Data & State Patterns](#data--state-patterns)
+- `URL State Persistence` — tool state should be shareable or bookmarkable.
+- `Hash-based State` — only a small amount of state needs to be encoded in the URL.
+
+### [External Libraries](#external-libraries)
+- Choosing a library or CDN loading strategy.
 
 ---
 
