@@ -4,7 +4,7 @@ import argparse
 from dataclasses import dataclass
 import json
 import subprocess
-from datetime import datetime
+from datetime import datetime, timezone
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Final
@@ -257,8 +257,12 @@ def parse_args() -> argparse.Namespace:
 if __name__ == "__main__":
     args = parse_args()
     tools = gather_tools()
-    # Sort newest first
-    tools.sort(key=lambda t: t.created or datetime.min, reverse=True)
+    # Sort newest first. get_git_date returns timezone-aware datetimes (git %aI),
+    # so the fallback for tools with no git creation date (e.g. generated redirect
+    # stubs that are gitignored and rebuilt fresh in CI) must also be aware —
+    # otherwise the sort raises "can't compare offset-naive and offset-aware".
+    epoch = datetime.min.replace(tzinfo=timezone.utc)
+    tools.sort(key=lambda t: t.created or epoch, reverse=True)
     html = build_html(tools)
     if not args.output_file.parent.exists():
         raise SystemExit(
