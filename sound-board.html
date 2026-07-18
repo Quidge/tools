@@ -361,17 +361,51 @@
       audio.addEventListener('canplaythrough', () => markReady(pad), { once: true });
       audio.addEventListener('error', () => markError(pad));
       audio.src = PAD_SRC[i];
+      // Attach to the DOM (an <audio> with no `controls` renders nothing) and
+      // kick an explicit load(). Mobile browsers (both Android Chrome/Blink and
+      // iOS Safari) deprioritize or defer buffering of detached `new Audio()`
+      // elements and are stingy about honoring preload='auto' before a user
+      // gesture — which left the FIRST tap after a fresh load silent: the clip
+      // wasn't decoded yet, so play() resolved after the gesture's activation
+      // window and was dropped (the second tap worked because it was decoded by
+      // then). A DOM-attached, explicitly loaded element decodes eagerly
+      // (readyState 4 up front), so the first tap fires instantly.
+      audio.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(audio);
+      audio.load();
       // Safety net: if the browser already has enough data (e.g. cached decode),
       // canplaythrough may have fired before we attached — clear the state now.
       if (audio.readyState >= 4 /* HAVE_ENOUGH_DATA */) markReady(pad);
       return audio;
     });
 
+    // One-time audio unlock. On mobile the very first user gesture can be spent
+    // warming the audio pipeline rather than producing sound, so prime every
+    // OTHER player once (muted play -> pause) inside that first gesture; each
+    // pad is then armed and subsequent taps are audible immediately. The tapped
+    // pad is skipped here because its caller plays it for real on this gesture.
+    let audioPrimed = false;
+    function primeAudio(skipIndex) {
+      if (audioPrimed) return;
+      audioPrimed = true;
+      players.forEach((a, i) => {
+        if (i === skipIndex || !a.paused) return;
+        a.muted = true;
+        const settle = () => { a.pause(); try { a.currentTime = 0; } catch (_) {} a.muted = false; };
+        const p = a.play();
+        if (p && typeof p.then === 'function') p.then(settle).catch(() => { a.muted = false; });
+        else settle();
+      });
+    }
+
     function play(padIndex, padEl) {
       const audio = players[padIndex];
-      // Restart from the top. Seeking a playing element cuts it off and
-      // replays it — no pause()/play() race that can throw on mobile.
-      try { audio.currentTime = 0; } catch (_) { /* not seekable yet */ }
+      // Restart from the top only when it's actually mid-play. A fresh element
+      // is already at 0, and seeking a not-yet-loaded element on the first tap
+      // is pointless and can abort the play() on some mobile browsers.
+      if (audio.currentTime > 0) {
+        try { audio.currentTime = 0; } catch (_) { /* not seekable yet */ }
+      }
       const result = audio.play();
       if (result && typeof result.catch === 'function') {
         result.catch((err) => console.error('Could not play sound:', err));
@@ -382,10 +416,8 @@
     pads.forEach((pad, index) => {
       players[index].addEventListener('ended', () => pad.classList.remove('playing'));
 
-      const trigger = (e) => {
-        // Play synchronously inside the gesture so iOS unlocks/keeps audio.
-        // pointerdown gives the snappiest, lowest-latency retrigger on touch.
-        e.preventDefault();
+      const fire = () => {
+        primeAudio(index); // warm the other pads on the very first gesture
         play(index, pad);
 
         // Re-arm the pulse animation on every tap, even mid-playback.
@@ -395,18 +427,28 @@
         pad.classList.add('trigger');
       };
 
-      pad.addEventListener('pointerdown', trigger);
+      // Fire on pointerUP, not pointerdown. On touch, Chromium-based browsers
+      // (Chrome/Brave/etc. on Android) withhold user activation until the tap
+      // is confirmed on release — so calling audio.play() during pointerdown is
+      // rejected as "not allowed" on the very FIRST tap of a fresh page (later
+      // taps ride the sticky activation the completed tap leaves behind, which
+      // is why only the first tap was silent). pointerup carries the activation,
+      // so the first tap plays; for a discrete tap the latency is imperceptible.
+      pad.addEventListener('pointerup', (e) => {
+        e.preventDefault();
+        fire();
+      });
+      // Stop the synthetic click that follows the tap from double-firing.
+      pad.addEventListener('click', (e) => e.preventDefault());
       pad.addEventListener('animationend', () => pad.classList.remove('trigger'));
 
       // Keyboard accessibility: Enter/Space fire the pad too.
       pad.addEventListener('keydown', (e) => {
         if (e.key === ' ' || e.key === 'Enter') {
           e.preventDefault();
-          play(index, pad);
+          fire();
         }
       });
-      // pointerdown already handled playback; stop the synthetic click.
-      pad.addEventListener('click', (e) => e.preventDefault());
     });
   </script>
 </body>
