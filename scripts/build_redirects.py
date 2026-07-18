@@ -12,9 +12,10 @@ mechanisms so the redirect works across environments:
                                    URL (a meta refresh is a weak SEO signal).
   - <a href> in the body         : last-resort clickable fallback.
 
-_redirects.json maps a source name to a target. The target may be an absolute
+_redirects.json maps a stub filename to a target. The target may be an absolute
 path on this site ("/sound-board.html") or a full external URL
-("https://example.com/"). Each entry produces "<source>.html" at the repo root.
+("https://example.com/"). Each key is written verbatim as a file at the repo
+root, so it must include the ".html" extension (e.g. "soundboard.html").
 
 These stubs are generated (and .gitignored) just like index.html; the source of
 truth is _redirects.json.
@@ -55,8 +56,8 @@ def build_redirects(redirects_file: Path, output_dir: Path) -> int:
         return 0
 
     redirects = json.loads(redirects_file.read_text())
-    for source, target in redirects.items():
-        stub = output_dir / f"{source}.html"
+    for filename, target in redirects.items():
+        stub = output_dir / filename
         stub.write_text(REDIRECT_TEMPLATE.format(url=target))
         print(f"Generated redirect: {stub.name} -> {target}")
     return len(redirects)
