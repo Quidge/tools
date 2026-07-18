@@ -8,3 +8,13 @@ dependencies = [
     "livereload>=2.7.1",
     "pre-commit>=4.6.0,<5",
 ]
+
+# We intentionally do not specify the uv version required with a minimum. This
+# repo makes heavy use of Anthropic remote sessions, which provision a box with
+# a uv version that can vary with ours. If we specify a minimum version here
+# that's higher than the version they install, a bunch of our commands
+# immediately bomb. To avoid managing that or trying to pin to whatever they
+# install with a matching minimum required version, we instead just don't pin at
+# all and rely on theirs. We haven't encountered any critical features yet that
+# we want out of newer uv versions that the older versions encountered in their
+# provisioned image doesn't yet have.
