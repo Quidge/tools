@@ -41,4 +41,3 @@ Local site URL: `http://localhost:8000`
 - `index.html` is generated; do not hand-edit.
 - Tool `created` / `updated` dates are derived from git history for each tool file.
 - CI deploy workflow rebuilds `index.html` before publishing.
-

@@ -6,4 +6,5 @@ requires-python = ">=3.13"
 dependencies = [
     "click>=8,<9",
     "livereload>=2.7.1",
+    "pre-commit>=4.6.0,<5",
 ]
