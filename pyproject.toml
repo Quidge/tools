@@ -7,6 +7,7 @@ dependencies = [
     "click>=8,<9",
     "livereload>=2.7.1",
     "pre-commit>=4.6.0,<5",
+    "rodney>=0.0.4,<1",
 ]
 
 # We intentionally do not specify the uv version required with a minimum. This
