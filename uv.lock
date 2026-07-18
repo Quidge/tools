@@ -155,6 +155,21 @@ wheels = [
 ]
 
 [[package]]
+name = "rodney"
+version = "0.4.0"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0c/d8/61fb75202eb13a89bf51c3978c8f82d5a04250d1e626da764a8c6b03dd1a/rodney-0.4.0-py3-none-macosx_10_9_x86_64.whl", hash = "sha256:7b351394f80960cb903df07994b5a4956cee08246c2dfc4c9e2c637a8cab3b79", size = 11903573, upload-time = "2026-02-17T22:57:54.386Z" },
+    { url = "https://files.pythonhosted.org/packages/1e/47/448e940e44f36058b5b9d8b06c8ed8719680f7fcf8ecc90beeefe47277dc/rodney-0.4.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:d3c0831ed8a029f23f19da9175a20082619eeeed344b56d71a3650de1e54f794", size = 11554714, upload-time = "2026-02-17T22:57:57.248Z" },
+    { url = "https://files.pythonhosted.org/packages/71/f2/9c01e9e99c45a1d5abbb9561cf472ff320ca3c9985c92e10f40e0329cc59/rodney-0.4.0-py3-none-manylinux_2_17_aarch64.whl", hash = "sha256:c74ba09b82d46458abe21111bc324f02a3d61594fb289e10de59e00315d6ea26", size = 11084050, upload-time = "2026-02-17T22:57:59.851Z" },
+    { url = "https://files.pythonhosted.org/packages/7f/29/6e6cf566571353f90bce0a9027e43277c22ea2617df906c1cda51d4be08e/rodney-0.4.0-py3-none-manylinux_2_17_x86_64.whl", hash = "sha256:5d34528bf63f44029f9a571176bd59fbd8b0e51cd8430befbdae07ef3b9d4194", size = 11481361, upload-time = "2026-02-17T22:58:02.362Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/60/d90b1c803c4f87459d5a2e7f7bb225e25c3ffa732123a84cae17515d74c5/rodney-0.4.0-py3-none-musllinux_1_2_aarch64.whl", hash = "sha256:b009bd05d165b4cc41cba4688267dd0fb62d0bfcc53fe925f15d324fccde5917", size = 11084050, upload-time = "2026-02-17T22:58:05.481Z" },
+    { url = "https://files.pythonhosted.org/packages/1b/52/6251ce66777523f8d08aac06c2668e9d1aae4334bf66f41a0e71bfe8cd76/rodney-0.4.0-py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:4927959cd8d6a4768654336e5320ac41f82a554de1253304459d3d40df4679c2", size = 11481363, upload-time = "2026-02-17T22:58:08.439Z" },
+    { url = "https://files.pythonhosted.org/packages/43/0f/1fbc12c3b7ce6abb70e26e078f84da30b5ca833d198ef4af575e8e7fec10/rodney-0.4.0-py3-none-win_amd64.whl", hash = "sha256:8ae4d429c3de7f938af9a851dd90b9fd4c831fb8e49b906ac941effead130d05", size = 10524251, upload-time = "2026-02-17T22:58:10.848Z" },
+    { url = "https://files.pythonhosted.org/packages/18/db/bffb283af3be3fa45c8d8332757d0adb58d9b6333209f07bb20f86b5fa23/rodney-0.4.0-py3-none-win_arm64.whl", hash = "sha256:524bf8ec5548ef4c859c99f5f0d056dd38e74539ae65efff04f7a23963850b07", size = 9949786, upload-time = "2026-02-17T22:58:13.565Z" },
+]
+
+[[package]]
 name = "tools"
 version = "0.1.0"
 source = { virtual = "." }
@@ -162,6 +177,7 @@ dependencies = [
     { name = "click" },
     { name = "livereload" },
     { name = "pre-commit" },
+    { name = "rodney" },
 ]
 
 [package.metadata]
@@ -169,6 +185,7 @@ requires-dist = [
     { name = "click", specifier = ">=8,<9" },
     { name = "livereload", specifier = ">=2.7.1" },
     { name = "pre-commit", specifier = ">=4.6.0,<5" },
+    { name = "rodney", specifier = ">=0.0.4,<1" },
 ]
 
 [[package]]
