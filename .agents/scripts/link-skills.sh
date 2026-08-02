@@ -3,7 +3,7 @@ set -euo pipefail
 
 AGENTS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_ROOT="$(cd "$AGENTS_DIR/.." && pwd)"
-TARGETS=(".claude/skills" ".cursor/skills")
+TARGETS=(".claude/skills")
 
 changed=0
 
