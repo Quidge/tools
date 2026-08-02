@@ -16,8 +16,8 @@ Build every tool as a single self-contained HTML file in the repo root. GitHub P
 Hard rule: do not hand-author a new tool file from scratch, and do not use a "create new file" shortcut that bypasses the canonical template. The first change to the new tool file must be a copied `assets/template.html`.
 
 Preflight (do this before you add any app-specific HTML/CSS/JS):
-1. From the repository root, copy the template: `cp .claude/skills/html-tool/assets/template.html <repo-root>/{tool-name}.html`
-2. Confirm the copy succeeded: `cmp .claude/skills/html-tool/assets/template.html {tool-name}.html` should report the files identical before you edit.
+1. From the repository root, copy the template: `cp .agents/skills/html-tool/assets/template.html <repo-root>/{tool-name}.html`
+2. Confirm the copy succeeded: `cmp .agents/skills/html-tool/assets/template.html {tool-name}.html` should report the files identical before you edit.
 3. Replace `TOOL_TITLE` and `TOOL_DESCRIPTION` placeholders
 4. Decide whether the tool is simple or non-trivial
 5. If it is non-trivial, read [references/patterns.md](references/patterns.md) before implementing
