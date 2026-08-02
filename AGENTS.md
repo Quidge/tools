@@ -17,8 +17,9 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - Tool `created` and `updated` dates are derived from git history by the index build.
 - `404.html` is the GitHub Pages fallback page and `pyproject.toml` holds Python
   project metadata for the `uv`-run build/serve commands.
-- Shared skills live in `.agents/skills/`. Run `.agents/scripts/link-skills.sh` to
-  maintain the Claude/Cursor compatibility symlinks; edit skills only in `.agents/`.
+- Shared skills are canonical in `.agents/skills/` and mirrored only to `.claude/skills`
+  (Cursor reads `.agents/skills` natively, so it needs no mirror). Run
+  `.agents/scripts/link-skills.sh` to maintain the mirror; edit skills only in `.agents/`.
 - `.claude/hooks/`, `.claude/settings.json`, and `.claude/setup-script.sh` are
   Claude Code VM configuration; leave them intact when changing shared memory.
 
