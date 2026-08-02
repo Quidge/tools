@@ -5,6 +5,8 @@ AGENTS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_ROOT="$(cd "$AGENTS_DIR/.." && pwd)"
 TARGETS=(".claude/skills" ".cursor/skills")
 
+changed=0
+
 for target_dir in "${TARGETS[@]}"; do
     mkdir -p "$REPO_ROOT/$target_dir"
 
@@ -24,6 +26,7 @@ for target_dir in "${TARGETS[@]}"; do
 
         ln -s "$link_target" "$link_path"
         echo "Linked: $link_path -> $link_target"
+        changed=1
     done
 
     shopt -s nullglob
@@ -35,8 +38,14 @@ for target_dir in "${TARGETS[@]}"; do
             if [ ! -d "$AGENTS_DIR/skills/$name" ]; then
                 rm "$link"
                 echo "Pruned: $link"
+                changed=1
             fi
         fi
     done
     shopt -u nullglob
 done
+
+if [ "$changed" -ne 0 ]; then
+    echo "Compatibility skill symlinks changed; re-stage them and commit again." >&2
+    exit 1
+fi

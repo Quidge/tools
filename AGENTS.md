@@ -11,9 +11,12 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - Build the index with `uv run python scripts/build_index.py --output-file index.html`.
 - Serve locally with `uv run livereload . --port 8000`; use `--target <tool-name>.html`
   to focus live reload on one tool. The site is served at `http://localhost:8000`.
-- GitHub Pages deploys the site from `main`; the authoritative workflow is
-  `.github/workflows/pages.yml` and rebuilds the generated index before publishing.
+- GitHub Pages deploys the site from `main` to `tools.jonathandemirgian.com` (custom
+  domain set by `CNAME`); the authoritative workflow is `.github/workflows/pages.yml`
+  and rebuilds the generated index before publishing.
 - Tool `created` and `updated` dates are derived from git history by the index build.
+- `404.html` is the GitHub Pages fallback page and `pyproject.toml` holds Python
+  project metadata for the `uv`-run build/serve commands.
 - Shared skills live in `.agents/skills/`. Run `.agents/scripts/link-skills.sh` to
   maintain the Claude/Cursor compatibility symlinks; edit skills only in `.agents/`.
 - `.claude/hooks/`, `.claude/settings.json`, and `.claude/setup-script.sh` are
